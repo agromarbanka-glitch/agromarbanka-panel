@@ -1,0 +1,1 @@
+Wersja v15: jeśli Vercel nie widzi zmiennych, aplikacja pokaże formularz konfiguracji Supabase. Wklej URL oraz anon/publishable key. Nie wgrywaj node_modules.
