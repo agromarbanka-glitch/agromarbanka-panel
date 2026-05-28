@@ -29,3 +29,8 @@
 /* v17: zalogowany użytkownik, akcje operacji, schowane pozycje */
 .userBadge{background:#eef2ff!important;color:#24356f!important}
 .miniActions{display:flex;gap:6px;flex-wrap:wrap}.miniActions button{font-size:12px;padding:7px 9px;border-radius:9px}.danger{background:#fee4e2;color:#9b1c14}.hiddenBox{margin-top:18px;border:1px dashed #cbd5d1;border-radius:16px;padding:12px;background:#fbfdfc}.hiddenBox summary{font-weight:800;cursor:pointer;color:#334155}.muted{color:#6a7785;font-size:14px}
+
+/* v18: import kontrahentów */
+.importBox{border:1px dashed #cbd5d1;border-radius:18px;padding:16px;margin:16px 0 20px;background:#fbfdfc}
+.importBox h3{margin:0 0 8px}.infoLine{background:#eef6f4;color:#0f5132;border-radius:12px;padding:10px 12px;font-weight:700}
+.importBox input[type=file]{background:white}
