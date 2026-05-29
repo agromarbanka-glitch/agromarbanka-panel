@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="96" fill="#17304a"/>
+<path d="M256 74 410 362H102L256 74Z" fill="#ffffff"/>
+<path d="M256 184 328 338H184L256 184Z" fill="#7cc36f"/>
+<text x="256" y="445" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#ffffff" text-anchor="middle">AGRO</text>
+</svg>

@@ -1,0 +1,19 @@
+{
+  "name": "Agromarbanka Panel",
+  "short_name": "Agromarbanka",
+  "description": "Wewnętrzny system opakowań zwrotnych Agromarbanka",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f7f0",
+  "theme_color": "#17304a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
