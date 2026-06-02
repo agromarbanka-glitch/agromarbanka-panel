@@ -714,3 +714,32 @@ input, select, textarea, button{
     width:105px !important;
   }
 }
+
+
+/* v23.2 — krótkie komunikaty po akcji */
+.toastMsg{
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  z-index:99999;
+  background:#102033;
+  color:#fff;
+  padding:14px 18px;
+  border-radius:14px;
+  box-shadow:0 18px 45px rgba(15,23,42,.28);
+  font-weight:800;
+  max-width:340px;
+  animation:toastIn .18s ease-out;
+}
+@keyframes toastIn{
+  from{transform:translateY(12px);opacity:0}
+  to{transform:translateY(0);opacity:1}
+}
+@media(max-width:700px){
+  .toastMsg{
+    left:14px;
+    right:14px;
+    bottom:16px;
+    text-align:center;
+  }
+}

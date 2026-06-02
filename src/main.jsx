@@ -21,7 +21,7 @@ const nowTime=()=>new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'
 const norm=(s='')=>s.toString().toLowerCase().trim();
 
 function App(){
- const [ready,setReady]=useState(false),[err,setErr]=useState(''),[me,setMe]=useState(null),[tab,setTab]=useState('operacje');
+ const [ready,setReady]=useState(false),[err,setErr]=useState(''),[me,setMe]=useState(null),[tab,setTab]=useState('operacje'),[toast,setToast]=useState('');
  const [kontrahenci,setKontrahenci]=useState([]),[opakowania,setOpakowania]=useState([]),[magazyny,setMagazyny]=useState([]),[users,setUsers]=useState([]),[operacje,setOperacje]=useState([]),[usuniete,setUsuniete]=useState([]);
  const logout=()=>{localStorage.removeItem('agro_logged_user_id'); setMe(null);};
  const load=async()=>{ if(!supabase){setErr('Brak zmiennych VITE_SUPABASE_URL lub VITE_SUPABASE_ANON_KEY w Vercel.'); setReady(true); return}
@@ -36,10 +36,11 @@ function App(){
   }catch(e){setErr('Błąd połączenia z Supabase: '+(e.message||e)); setReady(true)}
  };
  useEffect(()=>{load()},[]);
- if(!ready) return <Shell><div className="login"><h2>Ładowanie systemu...</h2></div></Shell>;
+ if(!ready) return <Shell><div className="login"><h2>Ładowanie systemu...</h2></div>{toast&&<div className="toastMsg">{toast}</div>} </Shell>;
  if(err) return <SetupSupabase/>;
  if(!me) return <Login users={users} setMe={setMe}/>;
- const ctx={me,load,kontrahenci,opakowania,magazyny,users,operacje,usuniete,setTab};
+ const notify=(msg)=>{setToast(msg); setTimeout(()=>setToast(''),3200)};
+ const ctx={me,load,kontrahenci,opakowania,magazyny,users,operacje,usuniete,setTab,notify};
  return <Shell>
    <header className="top"><div><b>Agromarbanka</b><span>Online Supabase</span><span className="userBadge">Zalogowano: {me.imie} · {me.rola}</span></div><button onClick={logout}><LogOut size={16}/> Wyloguj</button></header>
    <nav>{['operacje','kontrahenci','opakowania','magazyny','raporty','uzytkownicy','usuniete'].filter(x=>me.rola==='admin'||!['uzytkownicy','usuniete'].includes(x)).map(x=><button className={tab===x?'active':''} onClick={()=>setTab(x)} key={x}>{label(x)}</button>)}</nav>
@@ -94,7 +95,7 @@ function Operacje(p){
     r=await supabase.from('operacje').insert(fallback);
   }
   if(r.error) return alert(r.error.message);
-  clearForm(); p.load();
+  clearForm(); p.notify&&p.notify('Operacja została zapisana'); p.load();
  };
  return <div className="grid"><section className="card"><h2><Package/> Operacja</h2>
   <SearchSelect label="Kontrahent" items={p.kontrahenci.filter(x=>x.aktywny!==false)} value={kon} setValue={setKon} resetKey={resetSearch}/>
@@ -109,7 +110,7 @@ function Operacje(p){
   <div className="row"><div><label>Data operacji</label><input type="date" value={data} onChange={e=>setData(e.target.value)}/></div></div>
   <label>Podpis odbiorcy</label><input value={podpis} onChange={e=>setPodpis(e.target.value)} placeholder="Imię i nazwisko"/>
   <div className="row"><button className="big blue" onClick={()=>save('Wydanie')}>Wydanie</button><button className="big green" onClick={()=>save('Zwrot (PZ)')}>Zwrot (PZ)</button></div>
- </section><section className="card"><h2>Ostatnie operacje</h2><OperacjeLista rows={p.operacje.slice(-20).reverse()} allRows={p.operacje} me={p.me} load={p.load} kontrahenci={p.kontrahenci} opakowania={p.opakowania} magazyny={p.magazyny}/></section></div>}
+ </section><section className="card"><h2>Ostatnie operacje</h2><OperacjeLista rows={p.operacje.slice(-20).reverse()} allRows={p.operacje} me={p.me} load={p.load} kontrahenci={p.kontrahenci} opakowania={p.opakowania} magazyny={p.magazyny} notify={p.notify}/></section></div>}
 function dokumentHtml(o){
  const pozycje=o.pozycje&&o.pozycje.length?o.pozycje:[{opakowanie:o.opakowanie,ilosc:o.ilosc}];
  const pozycjeRows=pozycje.map((p,i)=>`<tr><td>${i+1}</td><td>${p.opakowanie||''}</td><td>${p.ilosc||''}</td></tr>`).join('');
@@ -182,14 +183,14 @@ function opisZmian(before,after){
  if(b!==a) zm.push(`pozycje: ${b} → ${a}`);
  return zm.join('; ')||'Edycja bez widocznych zmian';
 }
-function OperacjeLista({rows,allRows,me,load,kontrahenci=[],opakowania=[],magazyny=[]}){
+function OperacjeLista({rows,allRows,me,load,kontrahenci=[],opakowania=[],magazyny=[],notify}){
  const [edit,setEdit]=useState(null);
  const del=async(o)=>{if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora'); const powod=prompt('Powód usunięcia operacji:', 'Błąd przy wprowadzaniu'); if(powod===null) return;
  const archive={operacja_id:o.id,kontrahent:o.kontrahent,opakowanie:o.opakowanie,magazyn:o.magazyn,typ:o.typ,ilosc:o.ilosc,data_operacji:o.data_operacji,godzina_operacji:o.godzina_operacji||null,powod,usuniete_przez:me.imie};
  let a=await supabase.from('usuniete_operacje').insert(archive);
  if(a.error && (a.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=archive; a=await supabase.from('usuniete_operacje').insert(fallback); }
  if(a.error) return alert('Nie zapisano do rejestru usuniętych: '+a.error.message);
- const r=await supabase.from('operacje').delete().eq('id',o.id); if(r.error) return alert(r.error.message); await load();};
+ const r=await supabase.from('operacje').delete().eq('id',o.id); if(r.error) return alert(r.error.message); notify&&notify('Operacja została usunięta'); await load();};
 
  const startEdit=(o)=>{
   const doc=makeDocFromRows(o,allRows||rows);
@@ -242,7 +243,7 @@ function OperacjeLista({rows,allRows,me,load,kontrahenci=[],opakowania=[],magazy
   try{
     await supabase.from('historia_edycji_operacji').insert({dokument_id:docId,zmienione_przez:me.imie,opis_zmiany:opis,przed_zmiana:before,po_zmianie:after});
   }catch(e){}
-  setEdit(null); await load();
+  setEdit(null); notify&&notify('Dokument został edytowany'); await load();
  };
 
  return <div>{edit&&<div className="editDocBox"><h3>Edytuj dokument</h3><div className="formline"><label>Kontrahent<select value={edit.kontrahent} onChange={e=>setEdit({...edit,kontrahent:e.target.value})}>{kontrahenci.filter(k=>k.aktywny!==false).map(k=><option key={k.id}>{k.nazwa}</option>)}</select></label><label>Typ<select value={edit.typ} onChange={e=>setEdit({...edit,typ:e.target.value})}><option>Wydanie</option><option>Zwrot (PZ)</option></select></label><label>Magazyn<select value={edit.magazyn} onChange={e=>setEdit({...edit,magazyn:e.target.value})}>{magazyny.filter(m=>m.aktywny!==false&&!m.ukryty).map(m=><option key={m.id}>{m.nazwa}</option>)}</select></label><label>Data<input type="date" value={edit.data_operacji} onChange={e=>setEdit({...edit,data_operacji:e.target.value})}/></label></div><h4>Pozycje</h4>{edit.pozycje.map((p,i)=><div className="editPosRow" key={p.uid}><b>{i+1}.</b><select value={p.opakowanie} onChange={e=>updPos(p.uid,{opakowanie:e.target.value})}><option value="">Wybierz opakowanie</option>{opakowania.filter(o=>o.aktywne!==false).map(o=><option key={o.id}>{o.nazwa}</option>)}</select><input type="number" min="1" value={p.ilosc} onChange={e=>updPos(p.uid,{ilosc:e.target.value})}/><button className="danger" onClick={()=>delPos(p.uid)} disabled={edit.pozycje.length===1}>Usuń</button></div>)}<button className="secondary" onClick={addPos}>+ Dodaj pozycję</button><div className="row"><button className="big green" onClick={saveEdit}>Zapisz edycję</button><button className="big" onClick={()=>setEdit(null)}>Anuluj</button></div></div>}
@@ -255,7 +256,7 @@ function Kontrahenci({kontrahenci,load}){
  if(kontrahenci.some(k=>norm(k.nazwa)===norm(nazwa))) return alert('Taki kontrahent już istnieje: '+nazwa);
  const r=await supabase.from('kontrahenci').insert({nazwa,grupa:g,limit_opakowan:Number(lim)||0,saldo_startowe:Number(sal)||0});
  if(r.error) return alert(r.error.message);
- setN(''); setG(''); setLim(0); setSal(0); load()
+ setN(''); setG(''); setLim(0); setSal(0); notify&&notify('Kontrahent został dodany'); load()
 };
  const upd=async(id,o)=>{await supabase.from('kontrahenci').update(o).eq('id',id);load()};
  const cleanNumber=(v)=>{const s=String(v??'').replace(',','.').replace(/[^0-9.-]/g,'').trim(); return Number(s)||0};
@@ -306,7 +307,7 @@ function Uzytkownicy({users,magazyny,load}){const [u,setU]=useState({imie:'',tel
  if(users.some(x=>norm(x.telefon)===norm(u.telefon))) return alert('Użytkownik z takim telefonem już istnieje: '+u.telefon);
  const r=await supabase.from('uzytkownicy').insert(u);
  if(r.error) return alert(r.error.message);
- setU({imie:'',telefon:'',pin:'',rola:'kierowca',magazyn:''}); load()
+ setU({imie:'',telefon:'',pin:'',rola:'kierowca',magazyn:''}); notify&&notify('Użytkownik został dodany'); load()
 }; const upd=async(id,o)=>{await supabase.from('uzytkownicy').update(o).eq('id',id);load()}; const visible=users.filter(x=>!x.ukryty); const hidden=users.filter(x=>x.ukryty); const render=x=><><b>{x.imie}</b><span>{x.telefon} · {x.rola} · {x.magazyn||'wszystkie'}</span><button onClick={()=>upd(x.id,{aktywny:!x.aktywny})}>{x.aktywny?'Dezaktywuj':'Aktywuj'}</button><button onClick={()=>upd(x.id,{ukryty:!x.ukryty})}>{x.ukryty?'Pokaż':'Ukryj'}</button></>; return <section className="card"><h2>Użytkownicy</h2><div className="formline"><input placeholder="Imię" value={u.imie} onChange={e=>setU({...u,imie:e.target.value})}/><input placeholder="Telefon" value={u.telefon} onChange={e=>setU({...u,telefon:e.target.value})}/><input placeholder="PIN" value={u.pin} onChange={e=>setU({...u,pin:e.target.value})}/><select value={u.rola} onChange={e=>setU({...u,rola:e.target.value})}><option>admin</option><option>magazynier</option><option>kierowca</option></select><select value={u.magazyn||''} onChange={e=>setU({...u,magazyn:e.target.value})}><option value="">Bez przypisania</option>{magazyny.map(m=><option key={m.id}>{m.nazwa}</option>)}</select><button onClick={add}>Dodaj</button></div><List data={visible} render={render}/><HiddenSection title="Schowani użytkownicy" count={hidden.length}><List data={hidden} render={render}/></HiddenSection></section>}
 function HiddenSection({title,count,children}){return <details className="hiddenBox"><summary>{title} ({count})</summary>{count?children:<p className="muted">Brak schowanych pozycji.</p>}</details>}
 function Actions({x,upd}){return <><button onClick={()=>upd(x.id,{aktywny:!x.aktywny})}>{x.aktywny===false?'Aktywuj':'Dezaktywuj'}</button><button onClick={()=>upd(x.id,{ukryty:!x.ukryty})}>{x.ukryty?'Pokaż':'Ukryj'}</button></>}
