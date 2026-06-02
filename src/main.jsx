@@ -40,6 +40,7 @@ function App(){
  if(err) return <SetupSupabase/>;
  if(!me) return <Login users={users} setMe={setMe}/>;
  const notify=(msg)=>{setToast(msg); setTimeout(()=>setToast(''),3200)};
+ const notify=(msg)=>{setToast(msg); setTimeout(()=>setToast(''),3200)};
  const ctx={me,load,kontrahenci,opakowania,magazyny,users,operacje,usuniete,setTab,notify};
  return <Shell>
    <header className="top"><div><b>Agromarbanka</b><span>Online Supabase</span><span className="userBadge">Zalogowano: {me.imie} · {me.rola}</span></div><button onClick={logout}><LogOut size={16}/> Wyloguj</button></header>

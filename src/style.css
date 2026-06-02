@@ -743,3 +743,32 @@ input, select, textarea, button{
     text-align:center;
   }
 }
+
+
+/* v23.3 — naprawa widoczności komunikatów */
+.toastMsg{
+  position:fixed !important;
+  right:22px !important;
+  bottom:22px !important;
+  z-index:999999 !important;
+  background:#102033 !important;
+  color:#fff !important;
+  padding:14px 18px !important;
+  border-radius:14px !important;
+  box-shadow:0 18px 45px rgba(15,23,42,.28) !important;
+  font-weight:800 !important;
+  max-width:360px !important;
+  animation:toastIn .18s ease-out !important;
+}
+@keyframes toastIn{
+  from{transform:translateY(12px);opacity:0}
+  to{transform:translateY(0);opacity:1}
+}
+@media(max-width:700px){
+  .toastMsg{
+    left:14px !important;
+    right:14px !important;
+    bottom:16px !important;
+    text-align:center !important;
+  }
+}
