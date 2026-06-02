@@ -160,147 +160,17 @@
 
 <script>
 (function(){
-  if(window.__agroClientAutocompleteV21) return;
-  window.__agroClientAutocompleteV21 = true;
-
-  function normalize(s){
-    return (s||"").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-  }
-
-  function cleanOldSearches(area){
-    area.querySelectorAll(".searchable-client-select:not(.v21-clean)").forEach(function(el){
-      var sel = el.querySelector("select");
-      if(sel && el.parentNode){
-        el.parentNode.insertBefore(sel, el);
-      }
-      el.remove();
-    });
-  }
-
-  function enhance(){
-    var pageText = normalize(location.hash + " " + location.pathname + " " + document.body.innerText.slice(0,1500));
-    if(!pageText.includes("raport")) return;
-
-    cleanOldSearches(document.body);
-
-    document.querySelectorAll("select").forEach(function(sel){
-      if(sel.dataset.autocompleteV21 === "1") return;
-
-      var nearby = normalize((sel.closest("label,div,section,form") || document.body).innerText.slice(0,900));
-      var looksClient = nearby.includes("kontrah") || sel.options.length > 20;
-      if(!looksClient) return;
-
-      sel.dataset.autocompleteV21 = "1";
-
-      var all = Array.from(sel.options).map(function(o, idx){
-        return { value:o.value, text:o.textContent || o.innerText || "", idx:idx };
-      });
-
-      var wrap = document.createElement("div");
-      wrap.className = "searchable-client-select v21-clean";
-
-      var input = document.createElement("input");
-      input.className = "searchable-client-input";
-      input.placeholder = "Szukaj kontrahenta i kliknij wynik...";
-      input.autocomplete = "off";
-
-      var list = document.createElement("div");
-      list.className = "searchable-client-suggestions";
-      list.style.display = "none";
-
-      var clear = document.createElement("button");
-      clear.type = "button";
-      clear.className = "searchable-client-clear";
-      clear.textContent = "Wszyscy kontrahenci";
-
-      var hint = document.createElement("div");
-      hint.className = "searchable-client-hint";
-
-      sel.parentNode.insertBefore(wrap, sel);
-      wrap.appendChild(input);
-      wrap.appendChild(sel);
-      wrap.appendChild(list);
-      wrap.appendChild(clear);
-      wrap.appendChild(hint);
-
-      function setSelected(value, text){
-        sel.value = value || "";
-        input.value = value ? text : "";
-        sel.dispatchEvent(new Event("change", { bubbles:true }));
-        list.style.display = "none";
-        hint.textContent = value ? ("Wybrano: " + text) : "Wybrano: wszyscy kontrahenci";
-      }
-
-      function render(){
-        var q = normalize(input.value.trim());
-        list.innerHTML = "";
-        var filtered = all.filter(function(o, i){
-          if(i===0) return !q;
-          if(!q) return i < 40;
-          return normalize(o.text).includes(q);
-        }).slice(0, 80);
-
-        if(q && filtered.length === 0){
-          var empty = document.createElement("div");
-          empty.className = "searchable-client-option";
-          empty.textContent = "Brak wyników";
-          list.appendChild(empty);
-          list.style.display = "block";
-          hint.textContent = "Brak wyników.";
-          return;
-        }
-
-        filtered.forEach(function(o){
-          var btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "searchable-client-option" + (o.value === sel.value ? " is-selected" : "");
-          btn.textContent = o.idx === 0 ? "Wszyscy kontrahenci" : o.text;
-          btn.addEventListener("mousedown", function(e){
-            e.preventDefault();
-            setSelected(o.value, o.idx === 0 ? "" : o.text);
-          });
-          list.appendChild(btn);
-        });
-
-        list.style.display = document.activeElement === input || q ? "block" : "none";
-        hint.textContent = "Pokazano " + filtered.length + " z " + all.length + ". Kliknij kontrahenta z listy.";
-      }
-
-      input.addEventListener("input", render);
-      input.addEventListener("focus", render);
-      input.addEventListener("blur", function(){ setTimeout(function(){ list.style.display = "none"; }, 200); });
-      clear.addEventListener("click", function(){ setSelected("", ""); render(); });
-
-      render();
-    });
-  }
-
-  document.addEventListener("DOMContentLoaded", enhance);
-  setInterval(enhance, 1000);
-})();
-</script>
-
-
-
-
-
-<script>
-(function(){
-  if(window.__agroDisableBadHistoryButtonsV213) return;
-  window.__agroDisableBadHistoryButtonsV213 = true;
-
+  if(window.__agroCleanHistoryV214) return;
+  window.__agroCleanHistoryV214 = true;
   function clean(){
-    document.querySelectorAll(".edit-history-button, .edit-history-box").forEach(function(el){
-      // usuwa stare automatycznie wstawione przyciski, które blokowały wybór kontrahenta
-      el.remove();
-    });
-    document.querySelectorAll("[data-edit-history-enhanced], [data-hist-btn212]").forEach(function(el){
+    document.querySelectorAll(".edit-history-button,.edit-history-box").forEach(function(el){el.remove();});
+    document.querySelectorAll("[data-edit-history-enhanced],[data-hist-btn212]").forEach(function(el){
       el.removeAttribute("data-edit-history-enhanced");
       el.removeAttribute("data-hist-btn212");
     });
   }
   document.addEventListener("DOMContentLoaded", clean);
-  setInterval(clean, 800);
+  setInterval(clean, 1000);
 })();
 </script>
 
