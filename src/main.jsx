@@ -109,7 +109,7 @@ function Operacje(p){
   <div className="row"><div><label>Data operacji</label><input type="date" value={data} onChange={e=>setData(e.target.value)}/></div></div>
   <label>Podpis odbiorcy</label><input value={podpis} onChange={e=>setPodpis(e.target.value)} placeholder="Imię i nazwisko"/>
   <div className="row"><button className="big blue" onClick={()=>save('Wydanie')}>Wydanie</button><button className="big green" onClick={()=>save('Zwrot (PZ)')}>Zwrot (PZ)</button></div>
- </section><section className="card"><h2>Ostatnie operacje</h2><OperacjeLista rows={p.operacje.slice(-20).reverse()} allRows={p.operacje} me={p.me} load={p.load}/></section></div>}
+ </section><section className="card"><h2>Ostatnie operacje</h2><OperacjeLista rows={p.operacje.slice(-20).reverse()} allRows={p.operacje} me={p.me} load={p.load} kontrahenci={p.kontrahenci} opakowania={p.opakowania} magazyny={p.magazyny}/></section></div>}
 function dokumentHtml(o){
  const pozycje=o.pozycje&&o.pozycje.length?o.pozycje:[{opakowanie:o.opakowanie,ilosc:o.ilosc}];
  const pozycjeRows=pozycje.map((p,i)=>`<tr><td>${i+1}</td><td>${p.opakowanie||''}</td><td>${p.ilosc||''}</td></tr>`).join('');
@@ -130,6 +130,7 @@ h1{margin:12px 0 4px;font-size:34px}.box{border:1px solid #ddd;border-radius:14p
 <h1>${o.typ||'Operacja'}</h1><div class="muted">Agromarbanka · Dokument magazynowy</div>
 <div class="box"><table class="meta"><tr><td>Data</td><td>${o.data_operacji||''} ${o.godzina_operacji||''}</td></tr><tr><td>Kontrahent</td><td>${o.kontrahent||''}</td></tr><tr><td>Magazyn</td><td>${o.magazyn||''}</td></tr><tr><td>Użytkownik</td><td>${o.uzytkownik||''}</td></tr><tr><td>Podpis odbiorcy</td><td>${o.podpis||''}</td></tr><tr><td>Liczba pozycji</td><td>${pozycje.length}</td></tr><tr><td>Suma ilości</td><td>${total}</td></tr></table></div>
 <div class="box"><h2>Pozycje dokumentu</h2><table><thead><tr><th>Lp.</th><th>Opakowanie</th><th>Ilość</th></tr></thead><tbody>${pozycjeRows}</tbody></table></div>
+${(o.historia_edycji&&o.historia_edycji.length)?`<div class="box"><h2>Historia edycji</h2><table><thead><tr><th>Kiedy</th><th>Kto</th><th>Co zmieniono</th></tr></thead><tbody>${o.historia_edycji.map(h=>`<tr><td>${h.zmieniono_o||''}</td><td>${h.zmienione_przez||''}</td><td>${h.opis_zmiany||''}</td></tr>`).join('')}</tbody></table></div>`:''}
 <p>Podpis:</p><div class="sign"></div>
 <div class="signaturePad noPrint"><b>Podpis palcem na telefonie:</b><canvas id="sig"></canvas><div class="sigActions"><button onclick="clearSig()">Wyczyść podpis</button><button onclick="saveSig()">Dodaj podpis do wydruku</button></div></div><div class="printedSig" id="printedSig"></div>
 <script>
@@ -153,16 +154,99 @@ function saveSig(){const img=canvas.toDataURL('image/png'); document.getElementB
 function makeDocFromRows(o,rows=[]){
  const groupKey=o.dokument_id;
  const group=groupKey?rows.filter(x=>x.dokument_id===groupKey):[o];
- return {...o,pozycje:group.map(x=>({opakowanie:x.opakowanie,ilosc:x.ilosc})),ilosc:group.reduce((a,x)=>a+(Number(x.ilosc)||0),0)}
+ return {...o,pozycje:group.map(x=>({id:x.id,opakowanie:x.opakowanie,ilosc:x.ilosc})),ilosc:group.reduce((a,x)=>a+(Number(x.ilosc)||0),0)}
 }
-function openDoc(o,print=false,rows=[]){const doc=makeDocFromRows(o,rows); const w=window.open('','_blank','width=800,height=900'); if(!w) return alert('Przeglądarka zablokowała okno podglądu'); w.document.write(dokumentHtml(doc)); w.document.close(); if(print){setTimeout(()=>w.print(),500)}}
-function OperacjeLista({rows,allRows,me,load}){const del=async(o)=>{if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora'); const powod=prompt('Powód usunięcia operacji:', 'Błąd przy wprowadzaniu'); if(powod===null) return;
+async function getHistoriaDokumentu(doc){
+ const key=doc.dokument_id||String(doc.id);
+ try{
+  const r=await supabase.from('historia_edycji_operacji').select('*').eq('dokument_id',key).order('zmieniono_o',{ascending:false});
+  if(!r.error) return r.data||[];
+ }catch(e){}
+ return [];
+}
+async function openDoc(o,print=false,rows=[]){
+ const doc=makeDocFromRows(o,rows);
+ doc.historia_edycji=await getHistoriaDokumentu(doc);
+ const w=window.open('','_blank','width=800,height=900');
+ if(!w) return alert('Przeglądarka zablokowała okno podglądu');
+ w.document.write(dokumentHtml(doc)); w.document.close(); if(print){setTimeout(()=>w.print(),500)}
+}
+function opisZmian(before,after){
+ const b=(before.pozycje||[]).map(x=>`${x.opakowanie}: ${x.ilosc}`).join(', ');
+ const a=(after.pozycje||[]).map(x=>`${x.opakowanie}: ${x.ilosc}`).join(', ');
+ const zm=[];
+ if(before.kontrahent!==after.kontrahent) zm.push(`kontrahent: ${before.kontrahent||''} → ${after.kontrahent||''}`);
+ if(before.magazyn!==after.magazyn) zm.push(`magazyn: ${before.magazyn||''} → ${after.magazyn||''}`);
+ if(before.typ!==after.typ) zm.push(`typ: ${before.typ||''} → ${after.typ||''}`);
+ if(before.data_operacji!==after.data_operacji) zm.push(`data: ${before.data_operacji||''} → ${after.data_operacji||''}`);
+ if(b!==a) zm.push(`pozycje: ${b} → ${a}`);
+ return zm.join('; ')||'Edycja bez widocznych zmian';
+}
+function OperacjeLista({rows,allRows,me,load,kontrahenci=[],opakowania=[],magazyny=[]}){
+ const [edit,setEdit]=useState(null);
+ const del=async(o)=>{if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora'); const powod=prompt('Powód usunięcia operacji:', 'Błąd przy wprowadzaniu'); if(powod===null) return;
  const archive={operacja_id:o.id,kontrahent:o.kontrahent,opakowanie:o.opakowanie,magazyn:o.magazyn,typ:o.typ,ilosc:o.ilosc,data_operacji:o.data_operacji,godzina_operacji:o.godzina_operacji||null,powod,usuniete_przez:me.imie};
  let a=await supabase.from('usuniete_operacje').insert(archive);
  if(a.error && (a.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=archive; a=await supabase.from('usuniete_operacje').insert(fallback); }
  if(a.error) return alert('Nie zapisano do rejestru usuniętych: '+a.error.message);
  const r=await supabase.from('operacje').delete().eq('id',o.id); if(r.error) return alert(r.error.message); await load();};
- return <div className="table"><table><thead><tr>{['data','godz.','typ','kontrahent','opakowanie','ilość','magazyn','akcje'].map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map(o=><tr key={o.id}><td>{o.data_operacji}</td><td>{o.godzina_operacji||''}</td><td>{o.typ}</td><td>{o.kontrahent}</td><td>{o.opakowanie}{o.dokument_id&&<small className="docBadge">dok.</small>}</td><td>{o.ilosc}</td><td>{o.magazyn}</td><td><div className="miniActions"><button onClick={()=>openDoc(o,false,allRows||rows)}>Podgląd</button><button onClick={()=>openDoc(o,true,allRows||rows)}>Drukuj</button>{me.rola==='admin'&&<button className="danger" onClick={()=>del(o)}>Usuń</button>}</div></td></tr>)}</tbody></table></div>}
+
+ const startEdit=(o)=>{
+  const doc=makeDocFromRows(o,allRows||rows);
+  setEdit({
+   original:doc,
+   kontrahent:doc.kontrahent||'',
+   magazyn:doc.magazyn||'',
+   typ:doc.typ||'Wydanie',
+   data_operacji:doc.data_operacji||today(),
+   pozycje:(doc.pozycje||[]).map(x=>({uid:Date.now()+Math.random(),id:x.id,opakowanie:x.opakowanie,ilosc:x.ilosc}))
+  });
+ };
+ const updPos=(uid,patch)=>setEdit(e=>({...e,pozycje:e.pozycje.map(p=>p.uid===uid?{...p,...patch}:p)}));
+ const addPos=()=>setEdit(e=>({...e,pozycje:[...e.pozycje,{uid:Date.now()+Math.random(),opakowanie:'',ilosc:1}]}));
+ const delPos=(uid)=>setEdit(e=>({...e,pozycje:e.pozycje.length>1?e.pozycje.filter(p=>p.uid!==uid):e.pozycje}));
+
+ const saveEdit=async()=>{
+  if(!edit)return;
+  const valid=edit.pozycje.filter(p=>p.opakowanie&&Number(p.ilosc)>0);
+  if(!edit.kontrahent||!edit.magazyn||valid.length===0)return alert('Uzupełnij kontrahenta, magazyn i pozycje');
+  const docId=edit.original.dokument_id||String(edit.original.id);
+  const before=edit.original;
+  const after={...before,kontrahent:edit.kontrahent,magazyn:edit.magazyn,typ:edit.typ,data_operacji:edit.data_operacji,pozycje:valid.map(p=>({opakowanie:p.opakowanie,ilosc:Number(p.ilosc)}))};
+  const opis=opisZmian(before,after);
+
+  if(edit.original.dokument_id){
+    const ids=(edit.original.pozycje||[]).map(p=>p.id).filter(Boolean);
+    if(ids.length){
+      const d=await supabase.from('operacje').delete().in('id',ids);
+      if(d.error)return alert(d.error.message);
+    }
+    const base={dokument_id:edit.original.dokument_id,kontrahent:edit.kontrahent,magazyn:edit.magazyn,typ:edit.typ,data_operacji:edit.data_operacji,godzina_operacji:nowTime(),podpis:before.podpis||'',uzytkownik:me.imie};
+    const payload=valid.map(p=>({...base,opakowanie:p.opakowanie,ilosc:Number(p.ilosc)}));
+    const ins=await supabase.from('operacje').insert(payload);
+    if(ins.error)return alert(ins.error.message);
+  }else{
+    const first=valid[0];
+    const up=await supabase.from('operacje').update({kontrahent:edit.kontrahent,magazyn:edit.magazyn,typ:edit.typ,data_operacji:edit.data_operacji,opakowanie:first.opakowanie,ilosc:Number(first.ilosc),godzina_operacji:nowTime(),uzytkownik:me.imie}).eq('id',edit.original.id);
+    if(up.error)return alert(up.error.message);
+    if(valid.length>1){
+      const newDocId=String(edit.original.id)+'-'+Date.now();
+      await supabase.from('operacje').update({dokument_id:newDocId}).eq('id',edit.original.id);
+      const payload=valid.slice(1).map(p=>({dokument_id:newDocId,kontrahent:edit.kontrahent,magazyn:edit.magazyn,typ:edit.typ,data_operacji:edit.data_operacji,godzina_operacji:nowTime(),podpis:before.podpis||'',uzytkownik:me.imie,opakowanie:p.opakowanie,ilosc:Number(p.ilosc)}));
+      if(payload.length){
+        const ins=await supabase.from('operacje').insert(payload);
+        if(ins.error)return alert(ins.error.message);
+      }
+    }
+  }
+  try{
+    await supabase.from('historia_edycji_operacji').insert({dokument_id:docId,zmienione_przez:me.imie,opis_zmiany:opis,przed_zmiana:before,po_zmianie:after});
+  }catch(e){}
+  setEdit(null); await load();
+ };
+
+ return <div>{edit&&<div className="editDocBox"><h3>Edytuj dokument</h3><div className="formline"><label>Kontrahent<select value={edit.kontrahent} onChange={e=>setEdit({...edit,kontrahent:e.target.value})}>{kontrahenci.filter(k=>k.aktywny!==false).map(k=><option key={k.id}>{k.nazwa}</option>)}</select></label><label>Typ<select value={edit.typ} onChange={e=>setEdit({...edit,typ:e.target.value})}><option>Wydanie</option><option>Zwrot (PZ)</option></select></label><label>Magazyn<select value={edit.magazyn} onChange={e=>setEdit({...edit,magazyn:e.target.value})}>{magazyny.filter(m=>m.aktywny!==false&&!m.ukryty).map(m=><option key={m.id}>{m.nazwa}</option>)}</select></label><label>Data<input type="date" value={edit.data_operacji} onChange={e=>setEdit({...edit,data_operacji:e.target.value})}/></label></div><h4>Pozycje</h4>{edit.pozycje.map((p,i)=><div className="editPosRow" key={p.uid}><b>{i+1}.</b><select value={p.opakowanie} onChange={e=>updPos(p.uid,{opakowanie:e.target.value})}><option value="">Wybierz opakowanie</option>{opakowania.filter(o=>o.aktywne!==false).map(o=><option key={o.id}>{o.nazwa}</option>)}</select><input type="number" min="1" value={p.ilosc} onChange={e=>updPos(p.uid,{ilosc:e.target.value})}/><button className="danger" onClick={()=>delPos(p.uid)} disabled={edit.pozycje.length===1}>Usuń</button></div>)}<button className="secondary" onClick={addPos}>+ Dodaj pozycję</button><div className="row"><button className="big green" onClick={saveEdit}>Zapisz edycję</button><button className="big" onClick={()=>setEdit(null)}>Anuluj</button></div></div>}
+ <div className="table"><table><thead><tr>{['data','godz.','typ','kontrahent','opakowanie','ilość','magazyn','akcje'].map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map(o=><tr key={o.id}><td>{o.data_operacji}</td><td>{o.godzina_operacji||''}</td><td>{o.typ}</td><td>{o.kontrahent}</td><td>{o.opakowanie}{o.dokument_id&&<small className="docBadge">dok.</small>}</td><td>{o.ilosc}</td><td>{o.magazyn}</td><td><div className="miniActions"><button onClick={()=>openDoc(o,false,allRows||rows)}>Podgląd</button><button onClick={()=>openDoc(o,true,allRows||rows)}>Drukuj</button>{me.rola==='admin'&&<button onClick={()=>startEdit(o)}>Edytuj</button>}{me.rola==='admin'&&<button className="danger" onClick={()=>del(o)}>Usuń</button>}</div></td></tr>)}</tbody></table></div></div>}
 function Kontrahenci({kontrahenci,load}){
  const [n,setN]=useState(''),[g,setG]=useState(''),[lim,setLim]=useState(0),[sal,setSal]=useState(0),[q,setQ]=useState(''),[importInfo,setImportInfo]=useState(''),[preview,setPreview]=useState([]),[importErrors,setImportErrors]=useState([]);
  const add=async()=>{
