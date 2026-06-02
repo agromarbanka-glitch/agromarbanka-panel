@@ -69,60 +69,79 @@ function SearchSelect({label,items,value,setValue,field='nazwa',resetKey=0}){
   <select value={value} onChange={e=>choose(e.target.value)}><option value="">Wybierz z listy...</option>{list.map(x=><option key={x.id} value={x[field]}>{x[field]}</option>)}</select>
  </div>
 }
-function Operacje(p){const mags=p.me.rola==='kierowca'&&p.me.magazyn?p.magazyny.filter(m=>m.nazwa===p.me.magazyn):p.magazyny; const [kon,setKon]=useState(''),[opa,setOpa]=useState(''),[mag,setMag]=useState(mags[0]?.nazwa||''),[ilosc,setIlosc]=useState(1),[data,setData]=useState(today()),[podpis,setPodpis]=useState(''),[resetSearch,setResetSearch]=useState(0); useEffect(()=>{if(!mag&&mags[0])setMag(mags[0].nazwa)},[mags]);
- const save=async(typ)=>{if(!kon||!opa||!mag||!ilosc)return alert('Uzupełnij kontrahenta, opakowanie, magazyn i ilość'); const payload={kontrahent:kon,opakowanie:opa,magazyn:mag,typ,ilosc:Number(ilosc),data_operacji:data,godzina_operacji:nowTime(),podpis,uzytkownik:p.me.imie}; let r=await supabase.from('operacje').insert(payload); if(r.error && (r.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=payload; r=await supabase.from('operacje').insert(fallback); }
-  if(r.error) return alert(r.error.message); setKon(''); setOpa(''); setIlosc(1); setData(today()); setPodpis(''); setResetSearch(x=>x+1); p.load();};
- return <div className="grid"><section className="card"><h2><Package/> Operacja</h2><SearchSelect label="Kontrahent" items={p.kontrahenci.filter(x=>x.aktywny!==false)} value={kon} setValue={setKon} resetKey={resetSearch}/><SearchSelect label="Opakowanie" items={p.opakowania.filter(x=>x.aktywne!==false)} value={opa} setValue={setOpa} resetKey={resetSearch}/><div className="group"><label>Magazyn</label><select value={mag} onChange={e=>setMag(e.target.value)}>{mags.filter(x=>x.aktywny!==false&&!x.ukryty).map(m=><option key={m.id}>{m.nazwa}</option>)}</select></div><div className="row"><div><label>Ilość</label><input type="number" value={ilosc} onChange={e=>setIlosc(e.target.value)}/></div><div><label>Data operacji</label><input type="date" value={data} onChange={e=>setData(e.target.value)}/></div></div><label>Podpis odbiorcy</label><input value={podpis} onChange={e=>setPodpis(e.target.value)} placeholder="Imię i nazwisko"/><div className="row"><button className="big blue" onClick={()=>save('Wydanie')}>Wydanie</button><button className="big green" onClick={()=>save('Zwrot (PZ)')}>Zwrot (PZ)</button></div></section><section className="card"><h2>Ostatnie operacje</h2><OperacjeLista rows={p.operacje.slice(-10).reverse()} me={p.me} load={p.load}/></section></div>}
+function Operacje(p){
+ const mags=p.me.rola==='kierowca'&&p.me.magazyn?p.magazyny.filter(m=>m.nazwa===p.me.magazyn):p.magazyny;
+ const emptyPos=()=>({uid:Date.now()+Math.random(),opakowanie:'',ilosc:1});
+ const [kon,setKon]=useState(''),[mag,setMag]=useState(mags[0]?.nazwa||''),[data,setData]=useState(today()),[podpis,setPodpis]=useState(''),[resetSearch,setResetSearch]=useState(0),[pozycje,setPozycje]=useState([emptyPos()]);
+ useEffect(()=>{if(!mag&&mags[0])setMag(mags[0].nazwa)},[mags]);
+ const updPos=(uid,patch)=>setPozycje(xs=>xs.map(x=>x.uid===uid?{...x,...patch}:x));
+ const addPos=()=>setPozycje(xs=>[...xs,emptyPos()]);
+ const delPos=(uid)=>setPozycje(xs=>xs.length>1?xs.filter(x=>x.uid!==uid):xs);
+ const clearForm=()=>{setKon('');setPozycje([emptyPos()]);setData(today());setPodpis('');setResetSearch(x=>x+1);};
+ const save=async(typ)=>{
+  const valid=pozycje.filter(x=>x.opakowanie&&Number(x.ilosc)>0);
+  if(!kon||!mag||valid.length===0)return alert('Uzupełnij kontrahenta, magazyn oraz co najmniej jedną pozycję opakowania z ilością');
+  const dokument_id=(crypto?.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2));
+  const base={kontrahent:kon,magazyn:mag,typ,data_operacji:data,godzina_operacji:nowTime(),podpis,uzytkownik:p.me.imie,dokument_id};
+  const payloads=valid.map(pos=>({...base,opakowanie:pos.opakowanie,ilosc:Number(pos.ilosc)}));
+  let r=await supabase.from('operacje').insert(payloads);
+  if(r.error && (r.error.message||'').includes('dokument_id')){
+    const fallback=payloads.map(({dokument_id,...x})=>x);
+    r=await supabase.from('operacje').insert(fallback);
+  }
+  if(r.error && (r.error.message||'').includes('godzina_operacji')){
+    const fallback=payloads.map(({godzina_operacji,...x})=>x);
+    r=await supabase.from('operacje').insert(fallback);
+  }
+  if(r.error) return alert(r.error.message);
+  clearForm(); p.load();
+ };
+ return <div className="grid"><section className="card"><h2><Package/> Operacja</h2>
+  <SearchSelect label="Kontrahent" items={p.kontrahenci.filter(x=>x.aktywny!==false)} value={kon} setValue={setKon} resetKey={resetSearch}/>
+  <div className="group"><label>Magazyn</label><select value={mag} onChange={e=>setMag(e.target.value)}>{mags.filter(x=>x.aktywny!==false&&!x.ukryty).map(m=><option key={m.id}>{m.nazwa}</option>)}</select></div>
+  <div className="positionsBox"><h3>Pozycje dokumentu</h3>{pozycje.map((pos,idx)=><div className="positionRow" key={pos.uid}>
+    <b>Pozycja {idx+1}</b>
+    <SearchSelect label="Opakowanie" items={p.opakowania.filter(x=>x.aktywne!==false)} value={pos.opakowanie} setValue={(v)=>updPos(pos.uid,{opakowanie:v})} resetKey={resetSearch}/>
+    <label>Ilość<input type="number" value={pos.ilosc} min="1" onChange={e=>updPos(pos.uid,{ilosc:e.target.value})}/></label>
+    <button type="button" className="danger lightDanger" onClick={()=>delPos(pos.uid)} disabled={pozycje.length===1}>Usuń pozycję</button>
+  </div>)}
+  <button type="button" className="secondary addLineBtn" onClick={addPos}>+ Dodaj kolejne opakowanie</button></div>
+  <div className="row"><div><label>Data operacji</label><input type="date" value={data} onChange={e=>setData(e.target.value)}/></div></div>
+  <label>Podpis odbiorcy</label><input value={podpis} onChange={e=>setPodpis(e.target.value)} placeholder="Imię i nazwisko"/>
+  <div className="row"><button className="big blue" onClick={()=>save('Wydanie')}>Wydanie</button><button className="big green" onClick={()=>save('Zwrot (PZ)')}>Zwrot (PZ)</button></div>
+ </section><section className="card"><h2>Ostatnie operacje</h2><OperacjeLista rows={p.operacje.slice(-20).reverse()} allRows={p.operacje} me={p.me} load={p.load}/></section></div>}
 function dokumentHtml(o){
- const docText=`${o.typ||'Operacja'} - ${o.kontrahent||''}, ${o.opakowanie||''}, ilość: ${o.ilosc||''}, magazyn: ${o.magazyn||''}, data: ${o.data_operacji||''} ${o.godzina_operacji||''}`;
+ const pozycje=o.pozycje&&o.pozycje.length?o.pozycje:[{opakowanie:o.opakowanie,ilosc:o.ilosc}];
+ const pozycjeRows=pozycje.map((p,i)=>`<tr><td>${i+1}</td><td>${p.opakowanie||''}</td><td>${p.ilosc||''}</td></tr>`).join('');
+ const total=pozycje.reduce((a,p)=>a+(Number(p.ilosc)||0),0);
+ const docText=`${o.typ||'Operacja'} - ${o.kontrahent||''}, pozycji: ${pozycje.length}, suma ilości: ${total}, magazyn: ${o.magazyn||''}, data: ${o.data_operacji||''} ${o.godzina_operacji||''}`;
  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dokument ${o.typ||''}</title><style>
 *{box-sizing:border-box}
 body{font-family:Arial;padding:18px;color:#111;margin:0;max-width:760px;margin-left:auto;margin-right:auto;background:#fff}
 .docbar{position:sticky;top:0;background:#fff;padding:10px 0 14px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;z-index:10;border-bottom:1px solid #eee}
 .docbar button,.docbar a{border:0;border-radius:12px;padding:12px 10px;font-size:14px;font-weight:700;background:#17304a;color:#fff;text-decoration:none;text-align:center}
-.docbar .secondary{background:#eef2f5;color:#17304a}
-.docbar .green{background:#2f7d32;color:#fff}
-.docbar .orange{background:#f57c00;color:#fff}
-h1{margin:12px 0 4px;font-size:34px}.box{border:1px solid #ddd;border-radius:14px;padding:18px;margin:18px 0}table{width:100%;border-collapse:collapse;table-layout:fixed}td{padding:9px;border-bottom:1px solid #eee;vertical-align:top;word-break:break-word}td:first-child{width:42%;font-weight:700}.sign{height:80px;border-bottom:1px solid #111;margin-top:40px;width:100%;max-width:420px}.muted{color:#667;font-size:18px}
+.docbar .secondary{background:#eef2f5;color:#17304a}.docbar .green{background:#2f7d32;color:#fff}.docbar .orange{background:#f57c00;color:#fff}
+h1{margin:12px 0 4px;font-size:34px}.box{border:1px solid #ddd;border-radius:14px;padding:18px;margin:18px 0}table{width:100%;border-collapse:collapse;table-layout:fixed}td,th{padding:9px;border-bottom:1px solid #eee;vertical-align:top;word-break:break-word;text-align:left}.meta td:first-child{width:42%;font-weight:700}.sign{height:80px;border-bottom:1px solid #111;margin-top:40px;width:100%;max-width:420px}.muted{color:#667;font-size:18px}
 .signaturePad{border:1px solid #ddd;border-radius:14px;padding:12px;margin-top:18px}.signaturePad canvas{width:100%;height:180px;border:1px solid #ccc;border-radius:10px;touch-action:none;background:#fff}.sigActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.sigActions button{border:0;border-radius:12px;padding:12px;background:#eef2f5;color:#17304a;font-weight:700}
 @media(max-width:600px){body{padding:14px}h1{font-size:30px}.box{padding:14px}.docbar{grid-template-columns:1fr 1fr}.docbar button,.docbar a{width:100%;font-size:13px;padding:11px 8px}}
 @media print{.docbar,.signaturePad,.noPrint{display:none!important}body{padding:34px;max-width:none}.printedSig img{max-width:420px;border-bottom:1px solid #111}}
 </style></head><body>
-<div class="docbar">
-<button onclick="doPrint()">Drukuj</button>
-<button class="green" onclick="doPdf()">Zapisz / PDF</button>
-<button class="orange" onclick="shareDoc()">Udostępnij</button>
-<button class="secondary" onclick="goBack()">Powrót</button>
-</div>
-<h1>${o.typ||'Operacja'}</h1><div class="muted">Agromarbanka · Dokument magazynowy</div><div class="box"><table><tr><td>Data</td><td>${o.data_operacji||''} ${o.godzina_operacji||''}</td></tr><tr><td>Kontrahent</td><td>${o.kontrahent||''}</td></tr><tr><td>Opakowanie</td><td>${o.opakowanie||''}</td></tr><tr><td>Ilość</td><td>${o.ilosc||''}</td></tr><tr><td>Magazyn</td><td>${o.magazyn||''}</td></tr><tr><td>Użytkownik</td><td>${o.uzytkownik||''}</td></tr><tr><td>Podpis odbiorcy</td><td>${o.podpis||''}</td></tr></table></div>
+<div class="docbar"><button onclick="doPrint()">Drukuj</button><button class="green" onclick="doPdf()">Zapisz / PDF</button><button class="orange" onclick="shareDoc()">Udostępnij</button><button class="secondary" onclick="goBack()">Powrót</button></div>
+<h1>${o.typ||'Operacja'}</h1><div class="muted">Agromarbanka · Dokument magazynowy</div>
+<div class="box"><table class="meta"><tr><td>Data</td><td>${o.data_operacji||''} ${o.godzina_operacji||''}</td></tr><tr><td>Kontrahent</td><td>${o.kontrahent||''}</td></tr><tr><td>Magazyn</td><td>${o.magazyn||''}</td></tr><tr><td>Użytkownik</td><td>${o.uzytkownik||''}</td></tr><tr><td>Podpis odbiorcy</td><td>${o.podpis||''}</td></tr><tr><td>Liczba pozycji</td><td>${pozycje.length}</td></tr><tr><td>Suma ilości</td><td>${total}</td></tr></table></div>
+<div class="box"><h2>Pozycje dokumentu</h2><table><thead><tr><th>Lp.</th><th>Opakowanie</th><th>Ilość</th></tr></thead><tbody>${pozycjeRows}</tbody></table></div>
 <p>Podpis:</p><div class="sign"></div>
-<div class="signaturePad noPrint">
-<b>Podpis palcem na telefonie:</b>
-<canvas id="sig"></canvas>
-<div class="sigActions"><button onclick="clearSig()">Wyczyść podpis</button><button onclick="saveSig()">Dodaj podpis do wydruku</button></div>
-</div>
-<div class="printedSig" id="printedSig"></div>
+<div class="signaturePad noPrint"><b>Podpis palcem na telefonie:</b><canvas id="sig"></canvas><div class="sigActions"><button onclick="clearSig()">Wyczyść podpis</button><button onclick="saveSig()">Dodaj podpis do wydruku</button></div></div><div class="printedSig" id="printedSig"></div>
 <script>
 const docText=${JSON.stringify(docText)};
 function doPrint(){ window.print(); }
 function doPdf(){ alert('W następnym oknie wybierz: Zapisz jako PDF albo Drukuj do PDF.'); setTimeout(function(){window.print()},200); }
-function goBack(){
-  try{ if(window.opener && !window.opener.closed){ window.close(); return; } }catch(e){}
-  try{ history.back(); }catch(e){}
-  setTimeout(function(){ location.href='/'; },250);
-}
-function shareDoc(){
-  const text=docText;
-  if(navigator.share){ navigator.share({title:'Dokument Agromarbanka',text}).catch(function(){}); return; }
-  const msg=encodeURIComponent(text);
-  const choice=confirm('OK = WhatsApp, Anuluj = e-mail');
-  if(choice){ location.href='https://wa.me/?text='+msg; }
-  else{ location.href='mailto:?subject=Dokument Agromarbanka&body='+msg; }
-}
+function goBack(){try{ if(window.opener && !window.opener.closed){ window.close(); return; } }catch(e){} try{ history.back(); }catch(e){} setTimeout(function(){ location.href='/'; },250);}
+function shareDoc(){const text=docText;if(navigator.share){ navigator.share({title:'Dokument Agromarbanka',text}).catch(function(){}); return; } const msg=encodeURIComponent(text); const choice=confirm('OK = WhatsApp, Anuluj = e-mail'); if(choice){ location.href='https://wa.me/?text='+msg; } else{ location.href='mailto:?subject=Dokument Agromarbanka&body='+msg; }}
 const canvas=document.getElementById('sig'); const ctx=canvas.getContext('2d'); let drawing=false;
-function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=Math.max(300,Math.floor(r.width*2)); canvas.height=360; ctx.lineWidth=4; ctx.lineCap='round'; ctx.strokeStyle='#111'; }
+function resize(){ const r=canvas.getBoundingClientRect(); canvas.width=Math.max(300,Math.floor(r.width*2)); canvas.height=360; ctx.lineWidth=4; ctx.lineCap='round'; ctx.strokeStyle='#111';}
 resize(); window.addEventListener('resize',resize);
-function pos(e){ const r=canvas.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)*(canvas.width/r.width),y:(t.clientY-r.top)*(canvas.height/r.height)}; }
+function pos(e){ const r=canvas.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)*(canvas.width/r.width),y:(t.clientY-r.top)*(canvas.height/r.height)};}
 function start(e){drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault();}
 function move(e){if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault();}
 function end(){drawing=false;}
@@ -130,31 +149,20 @@ canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',
 canvas.addEventListener('touchstart',start,{passive:false}); canvas.addEventListener('touchmove',move,{passive:false}); canvas.addEventListener('touchend',end);
 function clearSig(){ctx.clearRect(0,0,canvas.width,canvas.height); document.getElementById('printedSig').innerHTML='';}
 function saveSig(){const img=canvas.toDataURL('image/png'); document.getElementById('printedSig').innerHTML='<p>Podpis elektroniczny:</p><img src="'+img+'">'; alert('Podpis dodany do dokumentu. Teraz możesz drukować lub zapisać jako PDF.');}
-</script>
-</body></html>`}
-function openDoc(o,print=false){const w=window.open('','_blank','width=800,height=900'); if(!w) return alert('Przeglądarka zablokowała okno podglądu'); w.document.write(dokumentHtml(o)); w.document.close(); if(print){setTimeout(()=>w.print(),500)}}
-function OperacjeLista({rows,me,load}){const del=async(o)=>{if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora'); const powod=prompt('Powód usunięcia operacji:', 'Błąd przy wprowadzaniu'); if(powod===null) return;
+</script></body></html>`}
+function makeDocFromRows(o,rows=[]){
+ const groupKey=o.dokument_id;
+ const group=groupKey?rows.filter(x=>x.dokument_id===groupKey):[o];
+ return {...o,pozycje:group.map(x=>({opakowanie:x.opakowanie,ilosc:x.ilosc})),ilosc:group.reduce((a,x)=>a+(Number(x.ilosc)||0),0)}
+}
+function openDoc(o,print=false,rows=[]){const doc=makeDocFromRows(o,rows); const w=window.open('','_blank','width=800,height=900'); if(!w) return alert('Przeglądarka zablokowała okno podglądu'); w.document.write(dokumentHtml(doc)); w.document.close(); if(print){setTimeout(()=>w.print(),500)}}
+function OperacjeLista({rows,allRows,me,load}){const del=async(o)=>{if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora'); const powod=prompt('Powód usunięcia operacji:', 'Błąd przy wprowadzaniu'); if(powod===null) return;
  const archive={operacja_id:o.id,kontrahent:o.kontrahent,opakowanie:o.opakowanie,magazyn:o.magazyn,typ:o.typ,ilosc:o.ilosc,data_operacji:o.data_operacji,godzina_operacji:o.godzina_operacji||null,powod,usuniete_przez:me.imie};
  let a=await supabase.from('usuniete_operacje').insert(archive);
  if(a.error && (a.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=archive; a=await supabase.from('usuniete_operacje').insert(fallback); }
  if(a.error) return alert('Nie zapisano do rejestru usuniętych: '+a.error.message);
  const r=await supabase.from('operacje').delete().eq('id',o.id); if(r.error) return alert(r.error.message); await load();};
- return <div className="table"><table><thead><tr>{['data','godz.','typ','kontrahent','opakowanie','ilość','magazyn','akcje'].map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map(o=><tr key={o.id}><td>{o.data_operacji}</td><td>{o.godzina_operacji||''}</td><td>{o.typ}</td><td>{o.kontrahent}</td><td>{o.opakowanie}</td><td>{o.ilosc}</td><td>{o.magazyn}</td><td><div className="miniActions"><button onClick={()=>openDoc(o,false)}>Podgląd</button><button onClick={()=>openDoc(o,true)}>Drukuj</button>{me.rola==='admin'&&<button className="danger" onClick={()=>del(o)}>Usuń</button>}</div></td></tr>)}</tbody></table></div>}
-
-function exportKontrahenciCsv(rows, filename='kontrahenci.csv'){
- const cols=['id','nazwa','grupa','telefon','miasto','nip','limit_opakowan','saldo_startowe','aktywny','ukryty','created_at'];
- const esc=(v)=>'"'+String(v??'').replaceAll('"','""')+'"';
- const csv=[cols.join(';'),...rows.map(r=>cols.map(c=>esc(r[c])).join(';'))].join('\n');
- const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
- const a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download=filename;
- document.body.appendChild(a);
- a.click();
- a.remove();
- setTimeout(()=>URL.revokeObjectURL(a.href),500);
-}
-
+ return <div className="table"><table><thead><tr>{['data','godz.','typ','kontrahent','opakowanie','ilość','magazyn','akcje'].map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map(o=><tr key={o.id}><td>{o.data_operacji}</td><td>{o.godzina_operacji||''}</td><td>{o.typ}</td><td>{o.kontrahent}</td><td>{o.opakowanie}{o.dokument_id&&<small className="docBadge"> dokument</small>}</td><td>{o.ilosc}</td><td>{o.magazyn}</td><td><div className="miniActions"><button onClick={()=>openDoc(o,false,allRows||rows)}>Podgląd</button><button onClick={()=>openDoc(o,true,allRows||rows)}>Drukuj</button>{me.rola==='admin'&&<button className="danger" onClick={()=>del(o)}>Usuń</button>}</div></td></tr>)}</tbody></table></div>}
 function Kontrahenci({kontrahenci,load}){
  const [n,setN]=useState(''),[g,setG]=useState(''),[lim,setLim]=useState(0),[sal,setSal]=useState(0),[q,setQ]=useState(''),[importInfo,setImportInfo]=useState(''),[preview,setPreview]=useState([]),[importErrors,setImportErrors]=useState([]);
  const add=async()=>{
