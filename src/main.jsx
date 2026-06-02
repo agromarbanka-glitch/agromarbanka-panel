@@ -223,9 +223,10 @@ function Raporty({operacje,kontrahenci,opakowania}){
  const filteredKontrahenci=useMemo(()=>{
   const q=norm(szukajKon);
   const sorted=[...kontrahenci].sort((a,b)=>(a.nazwa||'').localeCompare(b.nazwa||'','pl'));
-  if(!q) return sorted.slice(0,150);
-  return sorted.filter(k=>norm(k.nazwa).startsWith(q)||norm(k.nazwa).includes(q)).slice(0,150);
+  if(!q) return sorted.slice(0,80);
+  return sorted.filter(k=>norm(k.nazwa).startsWith(q)||norm(k.nazwa).includes(q)).slice(0,80);
  },[kontrahenci,szukajKon]);
+ const chooseKon=(name)=>{setKon(name);setSzukajKon(name);};
  const rows=operacje.filter(o=>(!od||o.data_operacji>=od)&&(!doo||o.data_operacji<=doo)&&(!kon||o.kontrahent===kon)&&(!opak||o.opakowanie===opak));
  const sum=rows.reduce((a,o)=>{const k=o.opakowanie||'Bez nazwy'; const qty=Number(o.ilosc)||0; if(!a[k]) a[k]={opakowanie:k,wydanie:0,zwrot:0,saldo:0}; if((o.typ||'').includes('Zwrot')){a[k].zwrot+=qty; a[k].saldo-=qty;} else {a[k].wydanie+=qty; a[k].saldo+=qty;} return a},{});
  const summaryRows=Object.values(sum);
@@ -233,7 +234,14 @@ function Raporty({operacje,kontrahenci,opakowania}){
  const reportTitle=`Raport opakowań${kon?' — '+kon:' — wszyscy kontrahenci'}`;
  const exportX=()=>{const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([{raport:reportTitle,od,do:doo,kontrahent:kon||'Wszyscy',opakowanie:opak||'Wszystkie',wydania:total.wydanie,zwroty:total.zwrot,saldo:total.saldo}]),'Opis'); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(summaryRows),'Podsumowanie'); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Historia'); XLSX.writeFile(wb,'raport_agromarbanka.xlsx')};
  const printReport=()=>window.print();
- return <section className="card reportCard"><h2><FileDown/> Raporty</h2><div className="formline noPrint"><label>Od<input type="date" value={od} onChange={e=>setOd(e.target.value)}/></label><label>Do<input type="date" value={doo} onChange={e=>setDoo(e.target.value)}/></label><label>Kontrahent<input className="reportSearchInput" placeholder="Wpisz pierwsze litery kontrahenta..." value={szukajKon} onChange={e=>setSzukajKon(e.target.value)}/><select value={kon} onChange={e=>setKon(e.target.value)}><option value="">Wszyscy kontrahenci</option>{filteredKontrahenci.map(k=><option key={k.id}>{k.nazwa}</option>)}</select><small className="muted">Pokazano {filteredKontrahenci.length} z {kontrahenci.length}</small></label><label>Rodzaj skrzynki<select value={opak} onChange={e=>setOpak(e.target.value)}><option value="">Wszystkie opakowania</option>{opakowania.map(o=><option key={o.id}>{o.nazwa}</option>)}</select></label><button className="primary" onClick={()=>setShow(true)}>Pokaż raport</button></div>
+ return <section className="card reportCard"><h2><FileDown/> Raporty</h2><div className="formline noPrint"><label>Od<input type="date" value={od} onChange={e=>setOd(e.target.value)}/></label><label>Do<input type="date" value={doo} onChange={e=>setDoo(e.target.value)}/></label><label>Kontrahent
+    <input className="reportSearchInput" placeholder="Wpisz pierwsze litery kontrahenta..." value={szukajKon} onChange={e=>{setSzukajKon(e.target.value);setKon('')}}/>
+    {szukajKon && filteredKontrahenci.length>0 && <div className="reportSuggestions">{filteredKontrahenci.slice(0,10).map(k=><button type="button" key={k.id} onClick={()=>chooseKon(k.nazwa)}>{k.nazwa}</button>)}</div>}
+    {szukajKon && filteredKontrahenci.length===0 && <small className="muted">Brak wyników</small>}
+    <select value={kon} onChange={e=>chooseKon(e.target.value)}><option value="">Wszyscy kontrahenci</option>{filteredKontrahenci.map(k=><option key={k.id}>{k.nazwa}</option>)}</select>
+    <button type="button" className="secondary smallBtn" onClick={()=>{setKon('');setSzukajKon('')}}>Wyczyść</button>
+    <small className="muted">Pokazano {filteredKontrahenci.length} z {kontrahenci.length}</small>
+   </label><label>Rodzaj skrzynki<select value={opak} onChange={e=>setOpak(e.target.value)}><option value="">Wszystkie opakowania</option>{opakowania.map(o=><option key={o.id}>{o.nazwa}</option>)}</select></label><button className="primary" onClick={()=>setShow(true)}>Pokaż raport</button></div>
   {show&&<div className="reportPreview" id="reportPreview"><div className="reportActions noPrint"><button onClick={printReport}><Printer size={14}/> Drukuj</button><button onClick={exportX}><FileDown size={14}/> Pobierz Excel</button></div><div className="reportHeader"><h1>{reportTitle}</h1><p><b>Zakres dat:</b> {od||'od początku'} – {doo||'do dziś'}</p><p><b>Kontrahent:</b> {kon||'Wszyscy'} · <b>Rodzaj skrzynki:</b> {opak||'Wszystkie'}</p></div><div className="summaryBoxes"><div><b>Wydano</b><span>{total.wydanie}</span></div><div><b>Zwrócono</b><span>{total.zwrot}</span></div><div><b>Saldo</b><span>{total.saldo}</span></div><div><b>Liczba operacji</b><span>{rows.length}</span></div></div><h3>Podsumowanie według rodzaju skrzynki</h3><Table rows={summaryRows} cols={['opakowanie','wydanie','zwrot','saldo']}/><h3>Historia operacji</h3><Table rows={rows} cols={['data_operacji','godzina_operacji','typ','kontrahent','opakowanie','ilosc','magazyn','uzytkownik']}/></div>}
  </section>}
 function Usuniete({usuniete}){return <section className="card"><h2><Trash2/> Rejestr usuniętych operacji</h2><Table rows={usuniete} cols={['usunieto_o','data_operacji','kontrahent','opakowanie','magazyn','typ','ilosc','usuniete_przez','powod']}/></section>}

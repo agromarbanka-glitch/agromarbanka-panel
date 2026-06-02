@@ -398,3 +398,34 @@ input, select, textarea, button{
   outline:2px solid rgba(31,96,190,.18);
   border-color:#1f60be;
 }
+
+/* v21.6.1 — podpowiedzi kontrahenta w raportach */
+.reportSuggestions{
+  display:grid;
+  gap:4px;
+  margin:6px 0 8px;
+  max-height:240px;
+  overflow:auto;
+  background:#fff;
+  border:1px solid #d9dee7;
+  border-radius:12px;
+  padding:6px;
+  box-shadow:0 10px 25px rgba(0,0,0,.08);
+}
+.reportSuggestions button{
+  border:0;
+  background:#fff;
+  text-align:left;
+  padding:9px 10px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:700;
+}
+.reportSuggestions button:hover{
+  background:#f1f5f9;
+}
+.smallBtn{
+  margin-top:6px;
+  padding:8px 12px;
+  border-radius:10px;
+}
