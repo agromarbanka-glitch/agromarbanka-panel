@@ -36,15 +36,15 @@ function App(){
   }catch(e){setErr('Błąd połączenia z Supabase: '+(e.message||e)); setReady(true)}
  };
  useEffect(()=>{load()},[]);
- if(!ready) return <Shell><div className="login"><h2>Ładowanie systemu...</h2></div>{toast&&<div className="toastMsg">{toast}</div>} </Shell>;
+ if(!ready) return <Shell><div className="login"><h2>Ładowanie systemu...</h2></div></Shell>;
  if(err) return <SetupSupabase/>;
  if(!me) return <Login users={users} setMe={setMe}/>;
- const notify=(msg)=>{setToast(msg); setTimeout(()=>setToast(''),3200)};
  const notify=(msg)=>{setToast(msg); setTimeout(()=>setToast(''),3200)};
  const ctx={me,load,kontrahenci,opakowania,magazyny,users,operacje,usuniete,setTab,notify};
  return <Shell>
    <header className="top"><div><b>Agromarbanka</b><span>Online Supabase</span><span className="userBadge">Zalogowano: {me.imie} · {me.rola}</span></div><button onClick={logout}><LogOut size={16}/> Wyloguj</button></header>
    <nav>{['operacje','kontrahenci','opakowania','magazyny','raporty','uzytkownicy','usuniete'].filter(x=>me.rola==='admin'||!['uzytkownicy','usuniete'].includes(x)).map(x=><button className={tab===x?'active':''} onClick={()=>setTab(x)} key={x}>{label(x)}</button>)}</nav>
+   {toast&&<div className="toastMsg">{toast}</div>}
    {tab==='operacje'&&<Operacje {...ctx}/>} {tab==='kontrahenci'&&<Kontrahenci {...ctx}/>} {tab==='opakowania'&&<Opakowania {...ctx}/>} {tab==='magazyny'&&<Magazyny {...ctx}/>} {tab==='raporty'&&<Raporty {...ctx}/>} {tab==='uzytkownicy'&&<Uzytkownicy {...ctx}/>} {tab==='usuniete'&&<Usuniete {...ctx}/>} 
  </Shell>
 }
@@ -249,7 +249,7 @@ function OperacjeLista({rows,allRows,me,load,kontrahenci=[],opakowania=[],magazy
 
  return <div>{edit&&<div className="editDocBox"><h3>Edytuj dokument</h3><div className="formline"><label>Kontrahent<select value={edit.kontrahent} onChange={e=>setEdit({...edit,kontrahent:e.target.value})}>{kontrahenci.filter(k=>k.aktywny!==false).map(k=><option key={k.id}>{k.nazwa}</option>)}</select></label><label>Typ<select value={edit.typ} onChange={e=>setEdit({...edit,typ:e.target.value})}><option>Wydanie</option><option>Zwrot (PZ)</option></select></label><label>Magazyn<select value={edit.magazyn} onChange={e=>setEdit({...edit,magazyn:e.target.value})}>{magazyny.filter(m=>m.aktywny!==false&&!m.ukryty).map(m=><option key={m.id}>{m.nazwa}</option>)}</select></label><label>Data<input type="date" value={edit.data_operacji} onChange={e=>setEdit({...edit,data_operacji:e.target.value})}/></label></div><h4>Pozycje</h4>{edit.pozycje.map((p,i)=><div className="editPosRow" key={p.uid}><b>{i+1}.</b><select value={p.opakowanie} onChange={e=>updPos(p.uid,{opakowanie:e.target.value})}><option value="">Wybierz opakowanie</option>{opakowania.filter(o=>o.aktywne!==false).map(o=><option key={o.id}>{o.nazwa}</option>)}</select><input type="number" min="1" value={p.ilosc} onChange={e=>updPos(p.uid,{ilosc:e.target.value})}/><button className="danger" onClick={()=>delPos(p.uid)} disabled={edit.pozycje.length===1}>Usuń</button></div>)}<button className="secondary" onClick={addPos}>+ Dodaj pozycję</button><div className="row"><button className="big green" onClick={saveEdit}>Zapisz edycję</button><button className="big" onClick={()=>setEdit(null)}>Anuluj</button></div></div>}
  <div className="table"><table><thead><tr>{['data','godz.','typ','kontrahent','opakowanie','ilość','magazyn','akcje'].map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map(o=><tr key={o.id}><td>{o.data_operacji}</td><td>{o.godzina_operacji||''}</td><td>{o.typ}</td><td>{o.kontrahent}</td><td>{o.opakowanie}{o.dokument_id&&<small className="docBadge">dok.</small>}</td><td>{o.ilosc}</td><td>{o.magazyn}</td><td><div className="miniActions"><button onClick={()=>openDoc(o,false,allRows||rows)}>Podgląd</button><button onClick={()=>openDoc(o,true,allRows||rows)}>Drukuj</button>{me.rola==='admin'&&<button onClick={()=>startEdit(o)}>Edytuj</button>}{me.rola==='admin'&&<button className="danger" onClick={()=>del(o)}>Usuń</button>}</div></td></tr>)}</tbody></table></div></div>}
-function Kontrahenci({kontrahenci,load}){
+function Kontrahenci({kontrahenci,load,notify}){
  const [n,setN]=useState(''),[g,setG]=useState(''),[lim,setLim]=useState(0),[sal,setSal]=useState(0),[q,setQ]=useState(''),[importInfo,setImportInfo]=useState(''),[preview,setPreview]=useState([]),[importErrors,setImportErrors]=useState([]);
  const add=async()=>{
  const nazwa=n.trim();
