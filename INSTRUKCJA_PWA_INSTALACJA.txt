@@ -1,0 +1,25 @@
+AGROMARBANKA PWA - instalacja bez APK i bez kabla
+
+Po wgraniu tej wersji na GitHub/Vercel pracownik instaluje aplikację tak:
+
+ANDROID / CHROME:
+1. Otwórz link do panelu, np. https://agromarbanka-panel-sztm.vercel.app
+2. Kliknij trzy kropki w prawym górnym rogu Chrome.
+3. Wybierz: Dodaj do ekranu głównego albo Zainstaluj aplikację.
+4. Potwierdź.
+5. Na ekranie telefonu pojawi się ikona Agromarbanka.
+
+SAMSUNG INTERNET:
+1. Otwórz link do panelu.
+2. Menu -> Dodaj stronę do -> Ekran startowy.
+
+iPHONE / SAFARI:
+1. Otwórz link w Safari.
+2. Kliknij ikonę udostępniania.
+3. Wybierz: Do ekranu początkowego.
+
+WAŻNE:
+- APK nie trzeba już budować.
+- Aktualizacje robisz tylko przez GitHub/Vercel.
+- Jeśli link Vercel zostanie ten sam, użytkownicy automatycznie widzą nową wersję.
+- Internet jest nadal potrzebny do pracy z bazą Supabase.
