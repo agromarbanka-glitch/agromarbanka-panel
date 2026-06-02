@@ -33,4 +33,128 @@
 })();
 </script>
 
+
+<script>
+(function(){
+  if(window.__agroClientAutocompleteV209) return;
+  window.__agroClientAutocompleteV209 = true;
+
+  function normalize(s){
+    return (s||"").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  }
+
+  function enhance(){
+    const bodyText = normalize(location.hash + " " + location.pathname + " " + document.body.innerText.slice(0,1200));
+    if(!bodyText.includes("raport")) return;
+
+    document.querySelectorAll("select").forEach(function(sel){
+      if(sel.dataset.autocompleteV209 === "1") return;
+
+      const nearby = normalize((sel.closest("label,div,section,form") || document.body).innerText.slice(0,700));
+      const looksLikeClientSelect = nearby.includes("kontrah") || sel.options.length > 20;
+      if(!looksLikeClientSelect) return;
+
+      sel.dataset.autocompleteV209 = "1";
+      sel.classList.add("searchable-client-dropdown");
+
+      const all = Array.from(sel.options).map(function(o, idx){
+        return { value:o.value, text:o.textContent || o.innerText || "", idx:idx };
+      });
+
+      const wrap = document.createElement("div");
+      wrap.className = "searchable-client-select";
+
+      const input = document.createElement("input");
+      input.className = "searchable-client-input";
+      input.placeholder = "Wpisz nazwę kontrahenta...";
+      input.autocomplete = "off";
+
+      const list = document.createElement("div");
+      list.className = "searchable-client-suggestions";
+      list.style.display = "none";
+
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "searchable-client-clear";
+      clear.textContent = "Wszyscy kontrahenci";
+
+      const hint = document.createElement("div");
+      hint.className = "searchable-client-hint";
+
+      sel.parentNode.insertBefore(wrap, sel);
+      wrap.appendChild(input);
+      wrap.appendChild(sel);
+      wrap.appendChild(list);
+      wrap.appendChild(clear);
+      wrap.appendChild(hint);
+
+      function currentText(){
+        const opt = all.find(function(o){ return o.value === sel.value; });
+        if(!opt || !sel.value) return "";
+        return opt.text;
+      }
+
+      function applyValue(value, text){
+        sel.value = value || "";
+        input.value = value ? text : "";
+        sel.dispatchEvent(new Event("change", { bubbles:true }));
+        list.style.display = "none";
+        hint.textContent = value ? "Wybrano: " + text : "Wybrano: wszyscy kontrahenci";
+      }
+
+      function render(){
+        const q = normalize(input.value.trim());
+        list.innerHTML = "";
+
+        let filtered = all.filter(function(o, idx){
+          if(idx === 0) return !q;
+          if(!q) return idx < 40;
+          return normalize(o.text).includes(q);
+        }).slice(0, 80);
+
+        if(q && filtered.length === 0){
+          const empty = document.createElement("div");
+          empty.className = "searchable-client-option";
+          empty.textContent = "Brak wyników";
+          list.appendChild(empty);
+          list.style.display = "block";
+          hint.textContent = "Brak wyników dla wpisanej frazy.";
+          return;
+        }
+
+        filtered.forEach(function(o){
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "searchable-client-option" + (o.value === sel.value ? " is-selected" : "");
+          btn.textContent = o.idx === 0 ? "Wszyscy kontrahenci" : o.text;
+          btn.addEventListener("mousedown", function(e){
+            e.preventDefault();
+            applyValue(o.value, o.idx === 0 ? "" : o.text);
+          });
+          list.appendChild(btn);
+        });
+
+        list.style.display = (document.activeElement === input || q) ? "block" : "none";
+        hint.textContent = "Pokazano " + filtered.length + " z " + all.length + ". Kliknij kontrahenta z listy.";
+      }
+
+      input.addEventListener("input", render);
+      input.addEventListener("focus", render);
+      input.addEventListener("blur", function(){
+        setTimeout(function(){ list.style.display = "none"; }, 180);
+      });
+      clear.addEventListener("click", function(){ applyValue("", ""); render(); });
+
+      if(sel.value){
+        input.value = currentText();
+      }
+      render();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", enhance);
+  setInterval(enhance, 1000);
+})();
+</script>
+
 </body></html>
