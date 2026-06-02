@@ -281,124 +281,26 @@
 </script>
 
 
+
+
+
 <script>
 (function(){
-  if(window.__agroEditHistoryV211) return;
-  window.__agroEditHistoryV211 = true;
+  if(window.__agroDisableBadHistoryButtonsV213) return;
+  window.__agroDisableBadHistoryButtonsV213 = true;
 
-  function txt(el){ return (el && el.innerText || "").trim(); }
-  function looksLikeOperationContainer(el){
-    const t = txt(el).toLowerCase();
-    return (
-      (t.includes("wydano") || t.includes("zwrócono") || t.includes("operac") || t.includes("dokument")) &&
-      (t.includes("kontrahent") || t.includes("opakowanie") || t.includes("magazyn") || t.includes("ilość") || t.includes("ilosc"))
-    );
-  }
-
-  function findSupabase(){
-    try{
-      if(window.supabase) return window.supabase;
-      if(window.__supabase) return window.__supabase;
-      for(const k of Object.keys(window)){
-        const v = window[k];
-        if(v && typeof v.from === "function" && typeof v.auth === "object") return v;
-      }
-    }catch(e){}
-    return null;
-  }
-
-  function extractOperationId(el){
-    const text = txt(el);
-    const patterns = [
-      /operacja[_\s-]*id[:\s#]*([0-9]+)/i,
-      /id[:\s#]*([0-9]+)/i,
-      /#([0-9]{1,10})/
-    ];
-    for(const p of patterns){
-      const m = text.match(p);
-      if(m) return m[1];
-    }
-    const attrId = el.getAttribute("data-id") || el.getAttribute("data-operation-id") || el.getAttribute("data-operacja-id");
-    return attrId || "";
-  }
-
-  async function loadHistory(operationId){
-    const client = findSupabase();
-    if(!client || !operationId) return {items:[], note:"Brak połączenia z Supabase lub brak ID operacji."};
-    try{
-      const {data, error} = await client
-        .from("historia_edycji_operacji")
-        .select("*")
-        .eq("operacja_id", operationId)
-        .order("zmieniono_o", {ascending:false});
-      if(error) return {items:[], note:"Nie udało się pobrać historii: " + error.message};
-      return {items:data || [], note:""};
-    }catch(e){
-      return {items:[], note:"Błąd pobierania historii: " + e.message};
-    }
-  }
-
-  function renderHistoryBox(container, operationId, result){
-    let box = container.querySelector(".edit-history-box");
-    if(!box){
-      box = document.createElement("div");
-      box.className = "edit-history-box";
-      container.appendChild(box);
-    }
-    let html = "<h4>Historia edycji</h4>";
-    if(!operationId){
-      html += "<div class='edit-history-row'>Nie znaleziono ID operacji przy tym dokumencie.</div>";
-    }else if(result.note){
-      html += "<div class='edit-history-row'>" + result.note + "</div>";
-    }else if(!result.items.length){
-      html += "<div class='edit-history-row'>Brak zapisanych edycji dla tej operacji.</div>";
-    }else{
-      result.items.forEach(function(h){
-        const who = h.zmienione_przez || h.zmienione_przez_id || "nieznany użytkownik";
-        const when = h.zmieniono_o ? new Date(h.zmieniono_o).toLocaleString("pl-PL") : "";
-        const desc = h.opis_zmiany || "Edycja dokumentu";
-        html += "<div class='edit-history-row'>";
-        html += "<div class='edit-history-meta'>" + who + " — " + when + "</div>";
-        html += "<div class='edit-history-desc'>" + desc + "</div>";
-        if(h.przed_zmiana || h.po_zmianie){
-          html += "<details class='edit-history-json'><summary>Szczegóły zmiany</summary>";
-          html += "Przed zmianą:\\n" + JSON.stringify(h.przed_zmiana || {}, null, 2);
-          html += "\\n\\nPo zmianie:\\n" + JSON.stringify(h.po_zmianie || {}, null, 2);
-          html += "</details>";
-        }
-        html += "</div>";
-      });
-    }
-    box.innerHTML = html;
-  }
-
-  function enhance(){
-    document.querySelectorAll("section, article, .card, .panel, .operation, .operacja, tr, div").forEach(function(el){
-      if(el.dataset.editHistoryEnhanced === "1") return;
-      if(!looksLikeOperationContainer(el)) return;
-
-      // avoid too many tiny divs
-      if(el.innerText && el.innerText.length < 40) return;
-      if(el.querySelector(".edit-history-button")) return;
-
-      const operationId = extractOperationId(el);
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "edit-history-button";
-      btn.textContent = "Historia edycji";
-      btn.addEventListener("click", async function(){
-        btn.textContent = "Ładowanie historii...";
-        const result = await loadHistory(operationId);
-        renderHistoryBox(el, operationId, result);
-        btn.textContent = "Historia edycji";
-      });
-      el.appendChild(btn);
-      el.dataset.editHistoryEnhanced = "1";
+  function clean(){
+    document.querySelectorAll(".edit-history-button, .edit-history-box").forEach(function(el){
+      // usuwa stare automatycznie wstawione przyciski, które blokowały wybór kontrahenta
+      el.remove();
+    });
+    document.querySelectorAll("[data-edit-history-enhanced], [data-hist-btn212]").forEach(function(el){
+      el.removeAttribute("data-edit-history-enhanced");
+      el.removeAttribute("data-hist-btn212");
     });
   }
-
-  document.addEventListener("DOMContentLoaded", enhance);
-  setInterval(enhance, 1500);
+  document.addEventListener("DOMContentLoaded", clean);
+  setInterval(clean, 800);
 })();
 </script>
 

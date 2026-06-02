@@ -575,3 +575,8 @@ button.small{padding:9px 12px;font-size:13px}
 .edit-history-button:hover{
   opacity:.9;
 }
+/* v21.3 — naprawa: historia edycji nie może pojawiać się przy formularzu operacji */
+.edit-history-button,
+.edit-history-box{
+  display:none !important;
+}
