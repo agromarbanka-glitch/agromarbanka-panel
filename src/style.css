@@ -382,3 +382,30 @@ table {
 input, select, textarea, button{
   pointer-events:auto !important;
 }
+
+
+/* v21.6 etap 1 — raporty: wyszukiwanie kontrahenta */
+.stage1-report-client-search{
+  display:grid;
+  gap:8px;
+  margin:8px 0 14px;
+  max-width:520px;
+}
+.stage1-search-input{
+  width:100%;
+  min-height:42px;
+  border:1px solid rgba(15,23,42,.22);
+  border-radius:12px;
+  padding:10px 12px;
+  background:#fff;
+  color:#111827;
+  font-size:15px;
+}
+.stage1-search-input:focus{
+  outline:2px solid rgba(37,99,235,.24);
+  border-color:rgba(37,99,235,.55);
+}
+.stage1-search-hint{
+  color:#64748b;
+  font-size:12px;
+}
