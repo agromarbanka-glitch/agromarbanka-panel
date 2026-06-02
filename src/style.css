@@ -464,3 +464,103 @@ input, select, textarea, button{
   font-size:11px;
   font-weight:800;
 }
+
+
+/* v22.1 — poprawa widoczności tabeli Ostatnie operacje */
+.card .table{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.card .table table{
+  min-width:760px;
+}
+.card .table th,
+.card .table td{
+  padding:8px 10px;
+  vertical-align:middle;
+}
+.card .table th:nth-child(1),
+.card .table td:nth-child(1){
+  width:98px;
+  min-width:98px;
+}
+.card .table th:nth-child(2),
+.card .table td:nth-child(2){
+  width:56px;
+  min-width:56px;
+}
+.card .table th:nth-child(3),
+.card .table td:nth-child(3){
+  width:86px;
+  min-width:86px;
+}
+.card .table th:nth-child(4),
+.card .table td:nth-child(4){
+  width:150px;
+  min-width:150px;
+}
+.card .table th:nth-child(5),
+.card .table td:nth-child(5){
+  width:120px;
+  min-width:120px;
+}
+.card .table th:nth-child(6),
+.card .table td:nth-child(6){
+  width:62px;
+  min-width:62px;
+  text-align:center;
+}
+.card .table th:nth-child(7),
+.card .table td:nth-child(7){
+  width:105px;
+  min-width:105px;
+}
+.card .table th:nth-child(8),
+.card .table td:nth-child(8){
+  width:128px;
+  min-width:128px;
+}
+.docBadge{
+  display:inline-block;
+  margin-left:4px;
+  padding:1px 5px;
+  border-radius:999px;
+  background:#eef2ff;
+  color:#1e3a8a;
+  font-size:10px;
+  font-weight:800;
+  line-height:1.3;
+  white-space:nowrap;
+}
+.miniActions{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:5px;
+  min-width:94px;
+}
+.miniActions button{
+  width:100%;
+  padding:7px 9px;
+  font-size:12px;
+  border-radius:9px;
+  line-height:1.1;
+}
+@media (max-width: 900px){
+  .card .table{
+    border:1px solid rgba(15,23,42,.08);
+    border-radius:14px;
+  }
+  .card .table table{
+    min-width:720px;
+  }
+  .card .table th,
+  .card .table td{
+    font-size:13px;
+    padding:7px 8px;
+  }
+  .miniActions button{
+    font-size:11px;
+    padding:7px 8px;
+  }
+}
