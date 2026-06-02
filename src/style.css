@@ -592,3 +592,125 @@ input, select, textarea, button{
     grid-template-columns:1fr;
   }
 }
+
+
+/* v23.1 — pełniejszy widok Ostatnie operacje na komputerze */
+@media (min-width: 1000px){
+  .grid{
+    grid-template-columns: minmax(330px, 0.8fr) minmax(680px, 1.6fr);
+    gap:18px;
+    align-items:start;
+  }
+
+  .card .table{
+    width:100%;
+    overflow-x:auto;
+  }
+
+  .card .table table{
+    min-width:0 !important;
+    width:100%;
+    table-layout:fixed;
+  }
+
+  .card .table th,
+  .card .table td{
+    padding:6px 7px !important;
+    font-size:12.5px;
+    line-height:1.2;
+    white-space:normal;
+    word-break:break-word;
+  }
+
+  .card .table th:nth-child(1),
+  .card .table td:nth-child(1){
+    width:82px !important;
+    min-width:0 !important;
+  }
+
+  .card .table th:nth-child(2),
+  .card .table td:nth-child(2){
+    width:46px !important;
+    min-width:0 !important;
+  }
+
+  .card .table th:nth-child(3),
+  .card .table td:nth-child(3){
+    width:70px !important;
+    min-width:0 !important;
+  }
+
+  .card .table th:nth-child(4),
+  .card .table td:nth-child(4){
+    width:120px !important;
+    min-width:0 !important;
+  }
+
+  .card .table th:nth-child(5),
+  .card .table td:nth-child(5){
+    width:105px !important;
+    min-width:0 !important;
+  }
+
+  .card .table th:nth-child(6),
+  .card .table td:nth-child(6){
+    width:45px !important;
+    min-width:0 !important;
+    text-align:center;
+  }
+
+  .card .table th:nth-child(7),
+  .card .table td:nth-child(7){
+    width:82px !important;
+    min-width:0 !important;
+  }
+
+  .card .table th:nth-child(8),
+  .card .table td:nth-child(8){
+    width:92px !important;
+    min-width:0 !important;
+  }
+
+  .miniActions{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:4px;
+    min-width:0 !important;
+  }
+
+  .miniActions button{
+    padding:5px 6px !important;
+    font-size:11px !important;
+    border-radius:8px;
+    min-height:28px;
+  }
+
+  .docBadge{
+    margin-left:3px;
+    padding:1px 4px;
+    font-size:9px;
+  }
+}
+
+@media (min-width: 1280px){
+  .card .table th,
+  .card .table td{
+    font-size:13px;
+    padding:7px 8px !important;
+  }
+
+  .card .table th:nth-child(4),
+  .card .table td:nth-child(4){
+    width:140px !important;
+  }
+
+  .card .table th:nth-child(5),
+  .card .table td:nth-child(5){
+    width:125px !important;
+  }
+
+  .card .table th:nth-child(8),
+  .card .table td:nth-child(8){
+    width:105px !important;
+  }
+}
