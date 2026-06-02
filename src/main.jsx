@@ -35,16 +35,7 @@ function App(){
    setReady(true);
   }catch(e){setErr('Błąd połączenia z Supabase: '+(e.message||e)); setReady(true)}
  };
- useEffect(()=>{
-  load();
-  if(!supabase) return;
-  const ch=supabase.channel('agro-live')
-    .on('postgres_changes',{event:'*',schema:'public',table:'operacje'},()=>load())
-    .on('postgres_changes',{event:'*',schema:'public',table:'kontrahenci'},()=>load())
-    .on('postgres_changes',{event:'*',schema:'public',table:'uzytkownicy'},()=>load())
-    .subscribe();
-  return ()=>{supabase.removeChannel(ch)};
- },[]);
+ useEffect(()=>{load()},[]);
  if(!ready) return <Shell><div className="login"><h2>Ładowanie systemu...</h2></div></Shell>;
  if(err) return <SetupSupabase/>;
  if(!me) return <Login users={users} setMe={setMe}/>;
@@ -78,53 +69,12 @@ function SearchSelect({label,items,value,setValue,field='nazwa',resetKey=0}){
   <select value={value} onChange={e=>choose(e.target.value)}><option value="">Wybierz z listy...</option>{list.map(x=><option key={x.id} value={x[field]}>{x[field]}</option>)}</select>
  </div>
 }
-function Operacje(p){
- const mags=p.me.rola==='kierowca'&&p.me.magazyn?p.magazyny.filter(m=>m.nazwa===p.me.magazyn):p.magazyny;
- const emptyItem=()=>({id:Math.random().toString(36).slice(2),opakowanie:'',ilosc:1});
- const [kon,setKon]=useState(''),[mag,setMag]=useState(mags[0]?.nazwa||''),[items,setItems]=useState([emptyItem()]),[data,setData]=useState(today()),[podpis,setPodpis]=useState(''),[resetSearch,setResetSearch]=useState(0);
- useEffect(()=>{if(!mag&&mags[0])setMag(mags[0].nazwa)},[mags]);
- const updateItem=(id,patch)=>setItems(items.map(x=>x.id===id?{...x,...patch}:x));
- const addItem=()=>setItems([...items,emptyItem()]);
- const removeItem=(id)=>setItems(items.length>1?items.filter(x=>x.id!==id):items);
- const save=async(typ)=>{
-  const good=items.filter(x=>x.opakowanie && Number(x.ilosc)>0);
-  if(!kon||!mag||!good.length)return alert('Uzupełnij kontrahenta, magazyn i minimum jedną pozycję opakowania');
-  const dokument_id='DOK-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-  const payloads=good.map((it,idx)=>({dokument_id,pozycja_nr:idx+1,kontrahent:kon,opakowanie:it.opakowanie,magazyn:mag,typ,ilosc:Number(it.ilosc),data_operacji:data,godzina_operacji:nowTime(),podpis,uzytkownik:p.me.imie}));
-  let r=await supabase.from('operacje').insert(payloads);
-  if(r.error && /dokument_id|pozycja_nr|column|schema/i.test(r.error.message||'')){
-    const fallback=payloads.map(({dokument_id,pozycja_nr,...x})=>x);
-    r=await supabase.from('operacje').insert(fallback);
-  }
-  if(r.error && (r.error.message||'').includes('godzina_operacji')){
-    const fallback=payloads.map(({godzina_operacji,...x})=>x);
-    r=await supabase.from('operacje').insert(fallback);
-  }
-  if(r.error) return alert(r.error.message);
-  setKon(''); setItems([emptyItem()]); setData(today()); setPodpis(''); setResetSearch(x=>x+1); p.load();
- };
- return <div className="grid"><section className="card"><h2><Package/> Operacja</h2>
-  <SearchSelect label="Kontrahent" items={p.kontrahenci.filter(x=>x.aktywny!==false)} value={kon} setValue={setKon} resetKey={resetSearch}/>
-  <div className="group"><label>Magazyn</label><select value={mag} onChange={e=>setMag(e.target.value)}>{mags.filter(x=>x.aktywny!==false&&!x.ukryty).map(m=><option key={m.id}>{m.nazwa}</option>)}</select></div>
-  <div className="multiItems">
-    <h3>Pozycje dokumentu</h3>
-    {items.map((it,idx)=><div className="multiItem" key={it.id}>
-      <SearchSelect label={'Opakowanie '+(idx+1)} items={p.opakowania.filter(x=>x.aktywne!==false)} value={it.opakowanie} setValue={v=>updateItem(it.id,{opakowanie:v})} resetKey={resetSearch}/>
-      <div><label>Ilość</label><input type="number" min="1" value={it.ilosc} onChange={e=>updateItem(it.id,{ilosc:e.target.value})}/></div>
-      <button type="button" className="danger small" onClick={()=>removeItem(it.id)}>Usuń pozycję</button>
-    </div>)}
-    <button type="button" className="secondary" onClick={addItem}>+ Dodaj kolejne opakowanie</button>
-  </div>
-  <div className="row"><div><label>Data operacji</label><input type="date" value={data} onChange={e=>setData(e.target.value)}/></div></div>
-  <label>Podpis odbiorcy</label><input value={podpis} onChange={e=>setPodpis(e.target.value)} placeholder="Imię i nazwisko"/>
-  <div className="row"><button className="big blue" onClick={()=>save('Wydanie')}>Wydanie</button><button className="big green" onClick={()=>save('Zwrot (PZ)')}>Zwrot (PZ)</button></div>
- </section><section className="card"><h2>Ostatnie operacje</h2><OperacjeLista rows={p.operacje.slice(-30).reverse()} me={p.me} load={p.load}/></section></div>
-}
+function Operacje(p){const mags=p.me.rola==='kierowca'&&p.me.magazyn?p.magazyny.filter(m=>m.nazwa===p.me.magazyn):p.magazyny; const [kon,setKon]=useState(''),[opa,setOpa]=useState(''),[mag,setMag]=useState(mags[0]?.nazwa||''),[ilosc,setIlosc]=useState(1),[data,setData]=useState(today()),[podpis,setPodpis]=useState(''),[resetSearch,setResetSearch]=useState(0); useEffect(()=>{if(!mag&&mags[0])setMag(mags[0].nazwa)},[mags]);
+ const save=async(typ)=>{if(!kon||!opa||!mag||!ilosc)return alert('Uzupełnij kontrahenta, opakowanie, magazyn i ilość'); const payload={kontrahent:kon,opakowanie:opa,magazyn:mag,typ,ilosc:Number(ilosc),data_operacji:data,godzina_operacji:nowTime(),podpis,uzytkownik:p.me.imie}; let r=await supabase.from('operacje').insert(payload); if(r.error && (r.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=payload; r=await supabase.from('operacje').insert(fallback); }
+  if(r.error) return alert(r.error.message); setKon(''); setOpa(''); setIlosc(1); setData(today()); setPodpis(''); setResetSearch(x=>x+1); p.load();};
+ return <div className="grid"><section className="card"><h2><Package/> Operacja</h2><SearchSelect label="Kontrahent" items={p.kontrahenci.filter(x=>x.aktywny!==false)} value={kon} setValue={setKon} resetKey={resetSearch}/><SearchSelect label="Opakowanie" items={p.opakowania.filter(x=>x.aktywne!==false)} value={opa} setValue={setOpa} resetKey={resetSearch}/><div className="group"><label>Magazyn</label><select value={mag} onChange={e=>setMag(e.target.value)}>{mags.filter(x=>x.aktywny!==false&&!x.ukryty).map(m=><option key={m.id}>{m.nazwa}</option>)}</select></div><div className="row"><div><label>Ilość</label><input type="number" value={ilosc} onChange={e=>setIlosc(e.target.value)}/></div><div><label>Data operacji</label><input type="date" value={data} onChange={e=>setData(e.target.value)}/></div></div><label>Podpis odbiorcy</label><input value={podpis} onChange={e=>setPodpis(e.target.value)} placeholder="Imię i nazwisko"/><div className="row"><button className="big blue" onClick={()=>save('Wydanie')}>Wydanie</button><button className="big green" onClick={()=>save('Zwrot (PZ)')}>Zwrot (PZ)</button></div></section><section className="card"><h2>Ostatnie operacje</h2><OperacjeLista rows={p.operacje.slice(-10).reverse()} me={p.me} load={p.load}/></section></div>}
 function dokumentHtml(o){
- const pozycje=o.pozycje&&o.pozycje.length?o.pozycje:[{opakowanie:o.opakowanie,ilosc:o.ilosc}];
- const pozycjeHtml=pozycje.map((p,i)=>`<tr><td>${i+1}</td><td>${p.opakowanie||''}</td><td>${p.ilosc||''}</td></tr>`).join('');
- const pozycjeText=pozycje.map((p,i)=>`${i+1}. ${p.opakowanie||''}: ${p.ilosc||''}`).join('; ');
- const docText=`${o.typ||'Operacja'} - ${o.kontrahent||''}, ${pozycjeText}, magazyn: ${o.magazyn||''}, data: ${o.data_operacji||''} ${o.godzina_operacji||''}`;
+ const docText=`${o.typ||'Operacja'} - ${o.kontrahent||''}, ${o.opakowanie||''}, ilość: ${o.ilosc||''}, magazyn: ${o.magazyn||''}, data: ${o.data_operacji||''} ${o.godzina_operacji||''}`;
  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dokument ${o.typ||''}</title><style>
 *{box-sizing:border-box}
 body{font-family:Arial;padding:18px;color:#111;margin:0;max-width:760px;margin-left:auto;margin-right:auto;background:#fff}
@@ -144,7 +94,7 @@ h1{margin:12px 0 4px;font-size:34px}.box{border:1px solid #ddd;border-radius:14p
 <button class="orange" onclick="shareDoc()">Udostępnij</button>
 <button class="secondary" onclick="goBack()">Powrót</button>
 </div>
-<h1>${o.typ||'Operacja'}</h1><div class="muted">Agromarbanka · Dokument magazynowy</div><div class="box"><table><tr><td>Data</td><td>${o.data_operacji||''} ${o.godzina_operacji||''}</td></tr><tr><td>Kontrahent</td><td>${o.kontrahent||''}</td></tr><tr><td>Magazyn</td><td>${o.magazyn||''}</td></tr><tr><td>Użytkownik</td><td>${o.uzytkownik||''}</td></tr><tr><td>Podpis odbiorcy</td><td>${o.podpis||''}</td></tr></table></div><div class="box"><h2>Pozycje dokumentu</h2><table><tr><td><b>Lp.</b></td><td><b>Opakowanie</b></td><td><b>Ilość</b></td></tr>${pozycjeHtml}</table></div>
+<h1>${o.typ||'Operacja'}</h1><div class="muted">Agromarbanka · Dokument magazynowy</div><div class="box"><table><tr><td>Data</td><td>${o.data_operacji||''} ${o.godzina_operacji||''}</td></tr><tr><td>Kontrahent</td><td>${o.kontrahent||''}</td></tr><tr><td>Opakowanie</td><td>${o.opakowanie||''}</td></tr><tr><td>Ilość</td><td>${o.ilosc||''}</td></tr><tr><td>Magazyn</td><td>${o.magazyn||''}</td></tr><tr><td>Użytkownik</td><td>${o.uzytkownik||''}</td></tr><tr><td>Podpis odbiorcy</td><td>${o.podpis||''}</td></tr></table></div>
 <p>Podpis:</p><div class="sign"></div>
 <div class="signaturePad noPrint">
 <b>Podpis palcem na telefonie:</b>
@@ -183,32 +133,13 @@ function saveSig(){const img=canvas.toDataURL('image/png'); document.getElementB
 </script>
 </body></html>`}
 function openDoc(o,print=false){const w=window.open('','_blank','width=800,height=900'); if(!w) return alert('Przeglądarka zablokowała okno podglądu'); w.document.write(dokumentHtml(o)); w.document.close(); if(print){setTimeout(()=>w.print(),500)}}
-function OperacjeLista({rows,me,load}){
- const [edit,setEdit]=useState(null);
- const docKey=o=>o.dokument_id||('single-'+o.id);
- const groups=Object.values(rows.reduce((a,o)=>{const k=docKey(o); if(!a[k]) a[k]={key:k,rows:[],first:o}; a[k].rows.push(o); return a;},{}));
- const makeDoc=g=>({...g.first,pozycje:g.rows.map(r=>({opakowanie:r.opakowanie,ilosc:r.ilosc})),ilosc:g.rows.reduce((s,r)=>s+(Number(r.ilosc)||0),0)});
- const del=async(g)=>{if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora'); const powod=prompt('Powód usunięcia dokumentu:', 'Błąd przy wprowadzaniu'); if(powod===null) return;
-  for(const o of g.rows){
-   const archive={operacja_id:o.id,kontrahent:o.kontrahent,opakowanie:o.opakowanie,magazyn:o.magazyn,typ:o.typ,ilosc:o.ilosc,data_operacji:o.data_operacji,godzina_operacji:o.godzina_operacji||null,powod,usuniete_przez:me.imie};
-   let a=await supabase.from('usuniete_operacje').insert(archive);
-   if(a.error && (a.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=archive; a=await supabase.from('usuniete_operacje').insert(fallback); }
-   if(a.error) return alert('Nie zapisano do rejestru usuniętych: '+a.error.message);
-   const r=await supabase.from('operacje').delete().eq('id',o.id); if(r.error) return alert(r.error.message);
-  }
-  await load();
- };
- const saveEdit=async()=>{
-  if(!edit) return;
-  const payload={kontrahent:edit.kontrahent,opakowanie:edit.opakowanie,magazyn:edit.magazyn,typ:edit.typ,ilosc:Number(edit.ilosc)||0,data_operacji:edit.data_operacji,podpis:edit.podpis||'',uzytkownik:edit.uzytkownik||me.imie};
-  const r=await supabase.from('operacje').update(payload).eq('id',edit.id);
-  if(r.error) return alert(r.error.message);
-  setEdit(null); await load();
- };
- return <div className="table"><table><thead><tr>{['data','godz.','typ','kontrahent','pozycje','magazyn','akcje'].map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{groups.map(g=>{const d=makeDoc(g); return <tr key={g.key}><td>{d.data_operacji}</td><td>{d.godzina_operacji||''}</td><td>{d.typ}</td><td>{d.kontrahent}</td><td>{g.rows.map(r=><div key={r.id}>{r.opakowanie}: <b>{r.ilosc}</b></div>)}</td><td>{d.magazyn}</td><td><div className="miniActions"><button onClick={()=>openDoc(d,false)}>Podgląd</button><button onClick={()=>openDoc(d,true)}>Drukuj</button>{me.rola==='admin'&&g.rows.length===1&&<button onClick={()=>setEdit(g.rows[0])}>Edytuj</button>}{me.rola==='admin'&&<button className="danger" onClick={()=>del(g)}>Usuń</button>}</div></td></tr>})}</tbody></table>
- {edit&&<div className="modalOverlay"><div className="modalCard"><h3>Edytuj operację</h3><label>Kontrahent<input value={edit.kontrahent||''} onChange={e=>setEdit({...edit,kontrahent:e.target.value})}/></label><label>Opakowanie<input value={edit.opakowanie||''} onChange={e=>setEdit({...edit,opakowanie:e.target.value})}/></label><label>Ilość<input type="number" value={edit.ilosc||0} onChange={e=>setEdit({...edit,ilosc:e.target.value})}/></label><label>Magazyn<input value={edit.magazyn||''} onChange={e=>setEdit({...edit,magazyn:e.target.value})}/></label><label>Data<input type="date" value={edit.data_operacji||today()} onChange={e=>setEdit({...edit,data_operacji:e.target.value})}/></label><div className="row"><button className="primary" onClick={saveEdit}>Zapisz zmiany</button><button onClick={()=>setEdit(null)}>Anuluj</button></div><p className="muted">Po zmianie ilości lub opakowania raporty i stany liczone z operacji przeliczą się automatycznie.</p></div></div>}
- </div>
-}
+function OperacjeLista({rows,me,load}){const del=async(o)=>{if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora'); const powod=prompt('Powód usunięcia operacji:', 'Błąd przy wprowadzaniu'); if(powod===null) return;
+ const archive={operacja_id:o.id,kontrahent:o.kontrahent,opakowanie:o.opakowanie,magazyn:o.magazyn,typ:o.typ,ilosc:o.ilosc,data_operacji:o.data_operacji,godzina_operacji:o.godzina_operacji||null,powod,usuniete_przez:me.imie};
+ let a=await supabase.from('usuniete_operacje').insert(archive);
+ if(a.error && (a.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=archive; a=await supabase.from('usuniete_operacje').insert(fallback); }
+ if(a.error) return alert('Nie zapisano do rejestru usuniętych: '+a.error.message);
+ const r=await supabase.from('operacje').delete().eq('id',o.id); if(r.error) return alert(r.error.message); await load();};
+ return <div className="table"><table><thead><tr>{['data','godz.','typ','kontrahent','opakowanie','ilość','magazyn','akcje'].map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map(o=><tr key={o.id}><td>{o.data_operacji}</td><td>{o.godzina_operacji||''}</td><td>{o.typ}</td><td>{o.kontrahent}</td><td>{o.opakowanie}</td><td>{o.ilosc}</td><td>{o.magazyn}</td><td><div className="miniActions"><button onClick={()=>openDoc(o,false)}>Podgląd</button><button onClick={()=>openDoc(o,true)}>Drukuj</button>{me.rola==='admin'&&<button className="danger" onClick={()=>del(o)}>Usuń</button>}</div></td></tr>)}</tbody></table></div>}
 
 function exportKontrahenciCsv(rows, filename='kontrahenci.csv'){
  const cols=['id','nazwa','grupa','telefon','miasto','nip','limit_opakowan','saldo_startowe','aktywny','ukryty','created_at'];
@@ -271,22 +202,7 @@ function Kontrahenci({kontrahenci,load}){
 function Opakowania({opakowania,load}){return <Simple title="Opakowania" icon={<Package/>} table="opakowania" rows={opakowania} name="nazwa" load={load} active="aktywne" hidden="ukryte"/>}
 function Magazyny({magazyny,load}){return <Simple title="Magazyny" icon={<Warehouse/>} table="magazyny" rows={magazyny} name="nazwa" load={load} active="aktywny" hidden="ukryty"/>}
 function Simple({title,icon,table,rows,name,load,active,hidden}){const [n,setN]=useState(''); const add=async()=>{if(!n)return; await supabase.from(table).insert({[name]:n}); setN('');load()}; const upd=async(id,o)=>{await supabase.from(table).update(o).eq('id',id);load()}; const visible=rows.filter(x=>!x[hidden]); const schowane=rows.filter(x=>x[hidden]); const render=x=><><b>{x[name]}</b><span>{x[active]===false?'Nieaktywny':'Aktywny'} {x[hidden]?'· Ukryty':''}</span><button onClick={()=>upd(x.id,{[active]:!x[active]})}>{x[active]===false?'Aktywuj':'Dezaktywuj'}</button><button onClick={()=>upd(x.id,{[hidden]:!x[hidden]})}>{x[hidden]?'Pokaż':'Ukryj'}</button></>; return <section className="card"><h2>{icon} {title}</h2><div className="formline"><input placeholder="Nowa nazwa" value={n} onChange={e=>setN(e.target.value)}/><button onClick={add}>Dodaj</button></div><List data={visible} render={render}/><HiddenSection title="Schowane" count={schowane.length}><List data={schowane} render={render}/></HiddenSection></section>}
-function Uzytkownicy({users,magazyny,load}){
- const [u,setU]=useState({imie:'',telefon:'',pin:'',rola:'kierowca',magazyn:''});
- const cleanTel=s=>String(s||'').replace(/\D/g,'');
- const add=async()=>{
-  if(!u.imie||!u.telefon||!u.pin)return alert('Uzupełnij imię, telefon i PIN');
-  const duplicate=users.find(x=>cleanTel(x.telefon)===cleanTel(u.telefon) || norm(x.imie)===norm(u.imie));
-  if(duplicate) return alert('Taki użytkownik już istnieje: '+duplicate.imie+' / '+duplicate.telefon);
-  const r=await supabase.from('uzytkownicy').insert(u);
-  if(r.error) return alert(r.error.message);
-  setU({imie:'',telefon:'',pin:'',rola:'kierowca',magazyn:''}); load()
- };
- const upd=async(id,o)=>{await supabase.from('uzytkownicy').update(o).eq('id',id);load()};
- const visible=users.filter(x=>!x.ukryty); const hidden=users.filter(x=>x.ukryty);
- const render=x=><><b>{x.imie}</b><span>{x.telefon} · {x.rola} · {x.magazyn||'wszystkie'}</span><button onClick={()=>upd(x.id,{aktywny:!x.aktywny})}>{x.aktywny?'Dezaktywuj':'Aktywuj'}</button><button onClick={()=>upd(x.id,{ukryty:!x.ukryty})}>{x.ukryty?'Pokaż':'Ukryj'}</button></>;
- return <section className="card"><h2>Użytkownicy</h2><div className="formline"><input placeholder="Imię" value={u.imie} onChange={e=>setU({...u,imie:e.target.value})}/><input placeholder="Telefon" value={u.telefon} onChange={e=>setU({...u,telefon:e.target.value})}/><input placeholder="PIN" value={u.pin} onChange={e=>setU({...u,pin:e.target.value})}/><select value={u.rola} onChange={e=>setU({...u,rola:e.target.value})}><option>admin</option><option>magazynier</option><option>kierowca</option></select><select value={u.magazyn||''} onChange={e=>setU({...u,magazyn:e.target.value})}><option value="">Bez przypisania</option>{magazyny.map(m=><option key={m.id}>{m.nazwa}</option>)}</select><button onClick={add}>Dodaj</button></div><List data={visible} render={render}/><HiddenSection title="Schowani użytkownicy" count={hidden.length}><List data={hidden} render={render}/></HiddenSection></section>
-}
+function Uzytkownicy({users,magazyny,load}){const [u,setU]=useState({imie:'',telefon:'',pin:'',rola:'kierowca',magazyn:''}); const add=async()=>{if(!u.imie||!u.telefon||!u.pin)return; const r=await supabase.from('uzytkownicy').insert(u); if(r.error) alert(r.error.message); setU({imie:'',telefon:'',pin:'',rola:'kierowca',magazyn:''}); load()}; const upd=async(id,o)=>{await supabase.from('uzytkownicy').update(o).eq('id',id);load()}; const visible=users.filter(x=>!x.ukryty); const hidden=users.filter(x=>x.ukryty); const render=x=><><b>{x.imie}</b><span>{x.telefon} · {x.rola} · {x.magazyn||'wszystkie'}</span><button onClick={()=>upd(x.id,{aktywny:!x.aktywny})}>{x.aktywny?'Dezaktywuj':'Aktywuj'}</button><button onClick={()=>upd(x.id,{ukryty:!x.ukryty})}>{x.ukryty?'Pokaż':'Ukryj'}</button></>; return <section className="card"><h2>Użytkownicy</h2><div className="formline"><input placeholder="Imię" value={u.imie} onChange={e=>setU({...u,imie:e.target.value})}/><input placeholder="Telefon" value={u.telefon} onChange={e=>setU({...u,telefon:e.target.value})}/><input placeholder="PIN" value={u.pin} onChange={e=>setU({...u,pin:e.target.value})}/><select value={u.rola} onChange={e=>setU({...u,rola:e.target.value})}><option>admin</option><option>magazynier</option><option>kierowca</option></select><select value={u.magazyn||''} onChange={e=>setU({...u,magazyn:e.target.value})}><option value="">Bez przypisania</option>{magazyny.map(m=><option key={m.id}>{m.nazwa}</option>)}</select><button onClick={add}>Dodaj</button></div><List data={visible} render={render}/><HiddenSection title="Schowani użytkownicy" count={hidden.length}><List data={hidden} render={render}/></HiddenSection></section>}
 function HiddenSection({title,count,children}){return <details className="hiddenBox"><summary>{title} ({count})</summary>{count?children:<p className="muted">Brak schowanych pozycji.</p>}</details>}
 function Actions({x,upd}){return <><button onClick={()=>upd(x.id,{aktywny:!x.aktywny})}>{x.aktywny===false?'Aktywuj':'Dezaktywuj'}</button><button onClick={()=>upd(x.id,{ukryty:!x.ukryty})}>{x.ukryty?'Pokaż':'Ukryj'}</button></>}
 function Raporty({operacje,kontrahenci,opakowania}){
