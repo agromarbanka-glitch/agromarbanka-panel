@@ -383,7 +383,7 @@ input, select, textarea, button{
   pointer-events:auto !important;
 }
 
-/* v21.6 final — bezpieczne poprawki */
+/* v21.6 etap 1 bezpieczny */
 .reportSearchInput{
   margin:6px 0 8px;
   width:100%;
@@ -397,10 +397,4 @@ input, select, textarea, button{
 .reportSearchInput:focus{
   outline:2px solid rgba(31,96,190,.18);
   border-color:#1f60be;
-}
-.selectedInfo{
-  display:block;
-  margin-top:7px;
-  color:#1f3b57;
-  font-weight:700;
 }

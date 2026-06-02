@@ -66,8 +66,7 @@ function SearchSelect({label,items,value,setValue,field='nazwa',resetKey=0}){
  return <div className="group searchbox"><label>{label}</label>
   <input placeholder={'Wpisz pierwsze litery '+label.toLowerCase()} value={q} onFocus={()=>setOpen(true)} onChange={e=>{setQ(e.target.value); setOpen(true); if(value) setValue('');}} />
   {open && q && list.length>0 && value!==q && <div className="suggestions">{list.map(x=><button type="button" key={x.id} onClick={()=>choose(x[field])}>{x[field]}</button>)}</div>}
-  {!value && <select value={value} onChange={e=>choose(e.target.value)}><option value="">Wybierz z listy...</option>{list.map(x=><option key={x.id} value={x[field]}>{x[field]}</option>)}</select>}
-  {value && <small className="selectedInfo">Wybrano: {value}</small>}
+  <select value={value} onChange={e=>choose(e.target.value)}><option value="">Wybierz z listy...</option>{list.map(x=><option key={x.id} value={x[field]}>{x[field]}</option>)}</select>
  </div>
 }
 function Operacje(p){const mags=p.me.rola==='kierowca'&&p.me.magazyn?p.magazyny.filter(m=>m.nazwa===p.me.magazyn):p.magazyny; const [kon,setKon]=useState(''),[opa,setOpa]=useState(''),[mag,setMag]=useState(mags[0]?.nazwa||''),[ilosc,setIlosc]=useState(1),[data,setData]=useState(today()),[podpis,setPodpis]=useState(''),[resetSearch,setResetSearch]=useState(0); useEffect(()=>{if(!mag&&mags[0])setMag(mags[0].nazwa)},[mags]);
@@ -159,12 +158,12 @@ function exportKontrahenciCsv(rows, filename='kontrahenci.csv'){
 function Kontrahenci({kontrahenci,load}){
  const [n,setN]=useState(''),[g,setG]=useState(''),[lim,setLim]=useState(0),[sal,setSal]=useState(0),[q,setQ]=useState(''),[importInfo,setImportInfo]=useState(''),[preview,setPreview]=useState([]),[importErrors,setImportErrors]=useState([]);
  const add=async()=>{
-  const nazwa=n.trim();
-  if(!nazwa)return;
-  if(kontrahenci.some(k=>norm(k.nazwa)===norm(nazwa))) return alert('Taki kontrahent już istnieje: '+nazwa);
-  const r=await supabase.from('kontrahenci').insert({nazwa,grupa:g,limit_opakowan:Number(lim)||0,saldo_startowe:Number(sal)||0});
-  if(r.error) return alert(r.error.message);
-  setN(''); setG(''); setLim(0); setSal(0); load()
+ const nazwa=n.trim();
+ if(!nazwa)return;
+ if(kontrahenci.some(k=>norm(k.nazwa)===norm(nazwa))) return alert('Taki kontrahent już istnieje: '+nazwa);
+ const r=await supabase.from('kontrahenci').insert({nazwa,grupa:g,limit_opakowan:Number(lim)||0,saldo_startowe:Number(sal)||0});
+ if(r.error) return alert(r.error.message);
+ setN(''); setG(''); setLim(0); setSal(0); load()
 };
  const upd=async(id,o)=>{await supabase.from('kontrahenci').update(o).eq('id',id);load()};
  const cleanNumber=(v)=>{const s=String(v??'').replace(',','.').replace(/[^0-9.-]/g,'').trim(); return Number(s)||0};
@@ -234,7 +233,7 @@ function Raporty({operacje,kontrahenci,opakowania}){
  const reportTitle=`Raport opakowań${kon?' — '+kon:' — wszyscy kontrahenci'}`;
  const exportX=()=>{const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([{raport:reportTitle,od,do:doo,kontrahent:kon||'Wszyscy',opakowanie:opak||'Wszystkie',wydania:total.wydanie,zwroty:total.zwrot,saldo:total.saldo}]),'Opis'); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(summaryRows),'Podsumowanie'); XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Historia'); XLSX.writeFile(wb,'raport_agromarbanka.xlsx')};
  const printReport=()=>window.print();
- return <section className="card reportCard"><h2><FileDown/> Raporty</h2><div className="formline noPrint"><label>Od<input type="date" value={od} onChange={e=>setOd(e.target.value)}/></label><label>Do<input type="date" value={doo} onChange={e=>setDoo(e.target.value)}/></label><label>Kontrahent<input className="reportSearchInput" placeholder="Szukaj po pierwszych literach..." value={szukajKon} onChange={e=>setSzukajKon(e.target.value)}/><select value={kon} onChange={e=>setKon(e.target.value)}><option value="">Wszyscy kontrahenci</option>{filteredKontrahenci.map(k=><option key={k.id}>{k.nazwa}</option>)}</select><small className="muted">Pokazano {filteredKontrahenci.length} z {kontrahenci.length}</small></label><label>Rodzaj skrzynki<select value={opak} onChange={e=>setOpak(e.target.value)}><option value="">Wszystkie opakowania</option>{opakowania.map(o=><option key={o.id}>{o.nazwa}</option>)}</select></label><button className="primary" onClick={()=>setShow(true)}>Pokaż raport</button></div>
+ return <section className="card reportCard"><h2><FileDown/> Raporty</h2><div className="formline noPrint"><label>Od<input type="date" value={od} onChange={e=>setOd(e.target.value)}/></label><label>Do<input type="date" value={doo} onChange={e=>setDoo(e.target.value)}/></label><label>Kontrahent<input className="reportSearchInput" placeholder="Wpisz pierwsze litery kontrahenta..." value={szukajKon} onChange={e=>setSzukajKon(e.target.value)}/><select value={kon} onChange={e=>setKon(e.target.value)}><option value="">Wszyscy kontrahenci</option>{filteredKontrahenci.map(k=><option key={k.id}>{k.nazwa}</option>)}</select><small className="muted">Pokazano {filteredKontrahenci.length} z {kontrahenci.length}</small></label><label>Rodzaj skrzynki<select value={opak} onChange={e=>setOpak(e.target.value)}><option value="">Wszystkie opakowania</option>{opakowania.map(o=><option key={o.id}>{o.nazwa}</option>)}</select></label><button className="primary" onClick={()=>setShow(true)}>Pokaż raport</button></div>
   {show&&<div className="reportPreview" id="reportPreview"><div className="reportActions noPrint"><button onClick={printReport}><Printer size={14}/> Drukuj</button><button onClick={exportX}><FileDown size={14}/> Pobierz Excel</button></div><div className="reportHeader"><h1>{reportTitle}</h1><p><b>Zakres dat:</b> {od||'od początku'} – {doo||'do dziś'}</p><p><b>Kontrahent:</b> {kon||'Wszyscy'} · <b>Rodzaj skrzynki:</b> {opak||'Wszystkie'}</p></div><div className="summaryBoxes"><div><b>Wydano</b><span>{total.wydanie}</span></div><div><b>Zwrócono</b><span>{total.zwrot}</span></div><div><b>Saldo</b><span>{total.saldo}</span></div><div><b>Liczba operacji</b><span>{rows.length}</span></div></div><h3>Podsumowanie według rodzaju skrzynki</h3><Table rows={summaryRows} cols={['opakowanie','wydanie','zwrot','saldo']}/><h3>Historia operacji</h3><Table rows={rows} cols={['data_operacji','godzina_operacji','typ','kontrahent','opakowanie','ilosc','magazyn','uzytkownik']}/></div>}
  </section>}
 function Usuniete({usuniete}){return <section className="card"><h2><Trash2/> Rejestr usuniętych operacji</h2><Table rows={usuniete} cols={['usunieto_o','data_operacji','kontrahent','opakowanie','magazyn','typ','ilosc','usuniete_przez','powod']}/></section>}
