@@ -25,6 +25,21 @@
   cursor: pointer;
 }
 .suggestions button:hover { background: #eef6f4; }
+/* V24.2 - naprawa widoczności zakładki Historia */
+
+.tab {
+  white-space: nowrap !important;
+  min-width: fit-content !important;
+}
+
+.tab.active {
+  min-width: 120px !important;
+}
+
+.tabs {
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
 
 /* v17: zalogowany użytkownik, akcje operacji, schowane pozycje */
 .userBadge{background:#eef2ff!important;color:#24356f!important}
