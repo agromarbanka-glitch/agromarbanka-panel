@@ -58,7 +58,19 @@ function SetupSupabase(){
 }
 
 function Shell({children}){return <main><section className="hero"><div><h1>Agromarbanka</h1><p>Nowoczesna obsługa opakowań zwrotnych, magazynu głównego i zapasowego.</p></div></section>{children}</main>}
-function label(x){return {operacje:'Operacja',kontrahenci:'Kontrahenci',opakowania:'Opakowania',magazyny:'Magazyny',raporty:'Raporty',uzytkownicy:'Użytkownicy',usuniete:'Usunięte'}[x]}
+function label(x){
+ switch(x){
+  case 'operacje':return 'Operacja';
+  case 'kontrahenci':return 'Kontrahenci';
+  case 'opakowania':return 'Opakowania';
+  case 'magazyny':return 'Magazyny';
+  case 'raporty':return 'Raporty';
+  case 'historia':return 'Historia';
+  case 'uzytkownicy':return 'Użytkownicy';
+  case 'usuniete':return 'Usunięte';
+  default:return x;
+ }
+}[x]}
 function Login({users,setMe}){const [tel,setTel]=useState(''),[pin,setPin]=useState(''),[msg,setMsg]=useState(''); const login=()=>{const u=users.find(x=>x.telefon===tel.trim()&&x.pin===pin.trim()&&x.aktywny!==false); if(u){localStorage.setItem('agro_logged_user_id',String(u.id)); setMe(u);} else setMsg('Nieprawidłowy telefon lub PIN')}; return <Shell><div className="login"><h2>Panel logowania</h2><input placeholder="Telefon" value={tel} onChange={e=>setTel(e.target.value)}/><input placeholder="PIN" value={pin} onChange={e=>setPin(e.target.value)} type="password"/><button className="primary" onClick={login}>Zaloguj</button><small>Po zalogowaniu aplikacja zapamięta użytkownika do czasu kliknięcia „Wyloguj”.</small>{msg&&<p className="error">{msg}</p>}</div></Shell>}
 function SearchSelect({label,items,value,setValue,field='nazwa',resetKey=0}){
  const [q,setQ]=useState(value||''),[open,setOpen]=useState(false);
@@ -375,33 +387,12 @@ function Raporty({operacje,kontrahenci,opakowania}){
  </section>}
 
 function Historia({operacje,me,load,kontrahenci,opakowania,magazyny,notify}){
- const [q,setQ]=useState(''),[od,setOd]=useState(''),[doo,setDoo]=useState(today()),[sel,setSel]=useState({});
- const rows=[...(operacje||[])].filter(o=>(!od||o.data_operacji>=od)&&(!doo||o.data_operacji<=doo)&&(!q||norm(o.kontrahent).includes(norm(q))||norm(o.opakowanie).includes(norm(q))||norm(o.typ).includes(norm(q))||norm(o.magazyn).includes(norm(q)))).sort((a,b)=>String((b.data_operacji||'')+(b.godzina_operacji||'')).localeCompare(String((a.data_operacji||'')+(a.godzina_operacji||''))));
+ const [q,setQ]=useState(''),[od,setOd]=useState(''),[doo,setDoo]=useState(today()),[typ,setTyp]=useState(''),[mag,setMag]=useState(''),[onlyDocs,setOnlyDocs]=useState(false),[sel,setSel]=useState({});
+ const rows=[...(operacje||[])].filter(o=>(!od||o.data_operacji>=od)&&(!doo||o.data_operacji<=doo)&&(!typ||o.typ===typ)&&(!mag||o.magazyn===mag)&&(!onlyDocs||!!o.dokument_id)&&(!q||norm(o.kontrahent).includes(norm(q))||norm(o.opakowanie).includes(norm(q))||norm(o.typ).includes(norm(q))||norm(o.magazyn).includes(norm(q)))).sort((a,b)=>String((b.data_operacji||'')+(b.godzina_operacji||'')).localeCompare(String((a.data_operacji||'')+(a.godzina_operacji||''))));
  const selectedIds=Object.keys(sel).filter(k=>sel[k]);
  const toggle=(id)=>setSel(s=>({...s,[id]:!s[id]}));
- const massDelete=async()=>{
-  if(me.rola!=='admin') return alert('Masowe usuwanie jest dostępne tylko dla administratora');
-  if(!selectedIds.length) return alert('Zaznacz operacje do usunięcia');
-  const powod=prompt('Podaj powód masowego usunięcia zaznaczonych operacji:', 'Błąd przy wprowadzaniu');
-  if(powod===null||!powod.trim()) return;
-  const selectedRows=rows.filter(r=>selectedIds.includes(String(r.id)));
-  for(const item of selectedRows){
-    const archive={operacja_id:item.id,dokument_id:item.dokument_id||null,kontrahent:item.kontrahent,opakowanie:item.opakowanie,magazyn:item.magazyn,typ:item.typ,ilosc:item.ilosc,data_operacji:item.data_operacji,godzina_operacji:item.godzina_operacji||null,powod:powod.trim(),usuniete_przez:me.imie};
-    let a=await supabase.from('usuniete_operacje').insert(archive);
-    if(a.error && (a.error.message||'').includes('dokument_id')){const {dokument_id,...f}=archive; a=await supabase.from('usuniete_operacje').insert(f);}
-    if(a.error && (a.error.message||'').includes('godzina_operacji')){const {godzina_operacji,...f2}=archive; a=await supabase.from('usuniete_operacje').insert(f2);}
-    if(a.error) return alert('Nie zapisano do rejestru usuniętych: '+a.error.message);
-  }
-  const d=await supabase.from('operacje').delete().in('id',selectedRows.map(x=>x.id));
-  if(d.error) return alert(d.error.message);
-  notify&&notify('Usunięto zaznaczone operacje');
-  setSel({}); await load();
- };
- return <section className="card"><h2><FileDown/> Historia operacji</h2>
-  <div className="formline noPrint"><label>Szukaj<input value={q} onChange={e=>setQ(e.target.value)} placeholder="Kontrahent, opakowanie, typ, magazyn"/></label><label>Od<input type="date" value={od} onChange={e=>setOd(e.target.value)}/></label><label>Do<input type="date" value={doo} onChange={e=>setDoo(e.target.value)}/></label>{me.rola==='admin'&&<button className="danger" onClick={massDelete}>Usuń zaznaczone ({selectedIds.length})</button>}</div>
-  <p className="muted">Pokazano {rows.length} operacji. Edycja jest dostępna dla admina, magazyniera i kierowcy. Usuwanie tylko dla admina.</p>
-  <OperacjeLista rows={rows} allRows={operacje} me={me} load={load} kontrahenci={kontrahenci} opakowania={opakowania} magazyny={magazyny} notify={notify} selectable={me.rola==='admin'} selected={sel} toggleSelect={toggle}/>
- </section>
+ const massDelete=async()=>{if(me.rola!=='admin')return alert('Masowe usuwanie jest dostępne tylko dla administratora'); if(!selectedIds.length)return alert('Zaznacz operacje do usunięcia'); const powod=prompt('Podaj powód masowego usunięcia zaznaczonych operacji:','Błąd przy wprowadzaniu'); if(powod===null||!powod.trim())return; const selectedRows=rows.filter(r=>selectedIds.includes(String(r.id))); for(const item of selectedRows){const archive={operacja_id:item.id,dokument_id:item.dokument_id||null,kontrahent:item.kontrahent,opakowanie:item.opakowanie,magazyn:item.magazyn,typ:item.typ,ilosc:item.ilosc,data_operacji:item.data_operacji,godzina_operacji:item.godzina_operacji||null,powod:powod.trim(),usuniete_przez:me.imie}; let a=await supabase.from('usuniete_operacje').insert(archive); if(a.error&&(a.error.message||'').includes('dokument_id')){const {dokument_id,...f}=archive; a=await supabase.from('usuniete_operacje').insert(f)} if(a.error&&(a.error.message||'').includes('godzina_operacji')){const {godzina_operacji,...f2}=archive; a=await supabase.from('usuniete_operacje').insert(f2)} if(a.error)return alert('Nie zapisano do rejestru usuniętych: '+a.error.message)} const d=await supabase.from('operacje').delete().in('id',selectedRows.map(x=>x.id)); if(d.error)return alert(d.error.message); notify&&notify('Usunięto zaznaczone operacje'); setSel({}); await load();};
+ return <section className="card historiaCard"><h2><FileDown/> Historia operacji</h2><div className="formline historiaFilters noPrint"><label>Szukaj<input value={q} onChange={e=>setQ(e.target.value)} placeholder="Wpisz nazwisko kontrahenta, opakowanie, typ..."/></label><label>Od<input type="date" value={od} onChange={e=>setOd(e.target.value)}/></label><label>Do<input type="date" value={doo} onChange={e=>setDoo(e.target.value)}/></label><label>Typ<select value={typ} onChange={e=>setTyp(e.target.value)}><option value="">Wszystkie</option><option>Wydanie</option><option>Przyjęcie (PZ)</option><option>Zwrot (PZ)</option></select></label><label>Magazyn<select value={mag} onChange={e=>setMag(e.target.value)}><option value="">Wszystkie</option>{magazyny.map(m=><option key={m.id}>{m.nazwa}</option>)}</select></label><label className="checkLabel"><input type="checkbox" checked={onlyDocs} onChange={e=>setOnlyDocs(e.target.checked)}/> Tylko dokumenty</label>{me.rola==='admin'&&<button className="danger" onClick={massDelete}>Usuń zaznaczone ({selectedIds.length})</button>}</div><p className="muted">Pokazano {rows.length} operacji. Edycja jest dostępna dla admina, magazyniera i kierowcy. Usuwanie tylko dla admina.</p><OperacjeLista rows={rows} allRows={operacje} me={me} load={load} kontrahenci={kontrahenci} opakowania={opakowania} magazyny={magazyny} notify={notify} selectable={me.rola==='admin'} selected={sel} toggleSelect={toggle}/></section>
 }
 
 function Usuniete({usuniete}){

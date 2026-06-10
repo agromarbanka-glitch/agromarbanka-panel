@@ -763,3 +763,27 @@ input, select, textarea, button{
 .deletedTable table{
   min-width:980px;
 }
+
+/* v24.1.1 — poprawka widoku Historii */
+nav button{min-width:max-content}
+nav button.active{color:#fff!important}
+.historiaCard{max-width:100%}
+.historiaFilters{grid-template-columns:minmax(260px,1.4fr) repeat(4,minmax(140px,.8fr)) minmax(150px,.8fr) auto;align-items:end}
+.checkLabel{display:flex!important;flex-direction:row!important;gap:8px;align-items:center;min-height:42px;font-weight:700}
+.checkLabel input{width:18px;height:18px}
+.historiaCard .table{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px}
+.historiaCard .table table{min-width:960px!important;width:100%;table-layout:fixed}
+.historiaCard .table th,.historiaCard .table td{padding:7px 8px!important;font-size:12.5px;line-height:1.25;white-space:normal;word-break:normal;overflow-wrap:anywhere}
+.historiaCard .table th:nth-child(1),.historiaCard .table td:nth-child(1){width:42px!important;text-align:center}
+.historiaCard .table th:nth-child(2),.historiaCard .table td:nth-child(2){width:86px!important}
+.historiaCard .table th:nth-child(3),.historiaCard .table td:nth-child(3){width:52px!important}
+.historiaCard .table th:nth-child(4),.historiaCard .table td:nth-child(4){width:84px!important}
+.historiaCard .table th:nth-child(5),.historiaCard .table td:nth-child(5){width:150px!important}
+.historiaCard .table th:nth-child(6),.historiaCard .table td:nth-child(6){width:150px!important}
+.historiaCard .table th:nth-child(7),.historiaCard .table td:nth-child(7){width:60px!important;text-align:center}
+.historiaCard .table th:nth-child(8),.historiaCard .table td:nth-child(8){width:110px!important}
+.historiaCard .table th:nth-child(9),.historiaCard .table td:nth-child(9){width:130px!important}
+.historiaCard .miniActions{min-width:100px!important}
+.historiaCard .miniActions button{font-size:11px!important;padding:6px 7px!important}
+@media(max-width:1200px){.historiaFilters{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.historiaFilters{grid-template-columns:1fr}}
