@@ -753,3 +753,13 @@ input, select, textarea, button{
   opacity:.45;
   cursor:not-allowed;
 }
+
+
+/* v24.1 — historia operacji i masowe usuwanie */
+.card .table input[type="checkbox"]{
+  width:18px;
+  height:18px;
+}
+.deletedTable table{
+  min-width:980px;
+}
