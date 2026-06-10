@@ -743,3 +743,13 @@ input, select, textarea, button{
     text-align:center !important;
   }
 }
+
+
+/* v23.5 — usunięte pozycje i bezpieczna edycja */
+.deletedTable table{
+  min-width:980px;
+}
+.editPosRow .danger:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}

@@ -186,12 +186,23 @@ function opisZmian(before,after){
 }
 function OperacjeLista({rows,allRows,me,load,kontrahenci=[],opakowania=[],magazyny=[],notify}){
  const [edit,setEdit]=useState(null);
- const del=async(o)=>{if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora'); const powod=prompt('Powód usunięcia operacji:', 'Błąd przy wprowadzaniu'); if(powod===null) return;
- const archive={operacja_id:o.id,kontrahent:o.kontrahent,opakowanie:o.opakowanie,magazyn:o.magazyn,typ:o.typ,ilosc:o.ilosc,data_operacji:o.data_operacji,godzina_operacji:o.godzina_operacji||null,powod,usuniete_przez:me.imie};
- let a=await supabase.from('usuniete_operacje').insert(archive);
- if(a.error && (a.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=archive; a=await supabase.from('usuniete_operacje').insert(fallback); }
- if(a.error) return alert('Nie zapisano do rejestru usuniętych: '+a.error.message);
- const r=await supabase.from('operacje').delete().eq('id',o.id); if(r.error) return alert(r.error.message); notify&&notify('Operacja została usunięta'); await load();};
+ const del=async(o)=>{
+ if(me.rola!=='admin') return alert('Usuwanie operacji jest dostępne tylko dla administratora');
+ const powod=prompt('Powód usunięcia operacji/dokumentu:', 'Błąd przy wprowadzaniu');
+ if(powod===null || !powod.trim()) return;
+ const group=o.dokument_id?(allRows||rows).filter(x=>x.dokument_id===o.dokument_id):[o];
+ for(const item of group){
+   const archive={operacja_id:item.id,dokument_id:item.dokument_id||null,kontrahent:item.kontrahent,opakowanie:item.opakowanie,magazyn:item.magazyn,typ:item.typ,ilosc:item.ilosc,data_operacji:item.data_operacji,godzina_operacji:item.godzina_operacji||null,powod:powod.trim(),usuniete_przez:me.imie};
+   let a=await supabase.from('usuniete_operacje').insert(archive);
+   if(a.error && (a.error.message||'').includes('godzina_operacji')){ const {godzina_operacji,...fallback}=archive; a=await supabase.from('usuniete_operacje').insert(fallback); }
+   if(a.error && (a.error.message||'').includes('dokument_id')){ const {dokument_id,...fallback2}=archive; a=await supabase.from('usuniete_operacje').insert(fallback2); }
+   if(a.error) return alert('Nie zapisano do rejestru usuniętych: '+a.error.message);
+ }
+ const r=o.dokument_id?await supabase.from('operacje').delete().eq('dokument_id',o.dokument_id):await supabase.from('operacje').delete().eq('id',o.id);
+ if(r.error) return alert(r.error.message);
+ notify&&notify('Operacja została usunięta');
+ await load();
+};
 
  const startEdit=(o)=>{
   const doc=makeDocFromRows(o,allRows||rows);
@@ -201,12 +212,18 @@ function OperacjeLista({rows,allRows,me,load,kontrahenci=[],opakowania=[],magazy
    magazyn:doc.magazyn||'',
    typ:doc.typ||'Wydanie',
    data_operacji:doc.data_operacji||today(),
-   pozycje:(doc.pozycje||[]).map(x=>({uid:Date.now()+Math.random(),id:x.id,opakowanie:x.opakowanie,ilosc:x.ilosc}))
+   pozycje:(doc.pozycje||[]).map(x=>({uid:Date.now()+Math.random(),id:x.id,opakowanie:x.opakowanie,ilosc:x.ilosc})),usunietePozycje:[]
   });
  };
  const updPos=(uid,patch)=>setEdit(e=>({...e,pozycje:e.pozycje.map(p=>p.uid===uid?{...p,...patch}:p)}));
  const addPos=()=>setEdit(e=>({...e,pozycje:[...e.pozycje,{uid:Date.now()+Math.random(),opakowanie:'',ilosc:1}]}));
- const delPos=(uid)=>setEdit(e=>({...e,pozycje:e.pozycje.length>1?e.pozycje.filter(p=>p.uid!==uid):e.pozycje}));
+ const delPos=(uid)=>setEdit(e=>{
+  if(e.pozycje.length<=1) return e;
+  const pos=e.pozycje.find(p=>p.uid===uid);
+  const powod=prompt('Podaj powód usunięcia pozycji z dokumentu:', 'Błąd przy wprowadzaniu');
+  if(powod===null || !powod.trim()) return e;
+  return {...e,pozycje:e.pozycje.filter(p=>p.uid!==uid),usunietePozycje:[...(e.usunietePozycje||[]),{...pos,powod:powod.trim()}]};
+});
 
  const saveEdit=async()=>{
   if(!edit)return;
@@ -242,7 +259,24 @@ function OperacjeLista({rows,allRows,me,load,kontrahenci=[],opakowania=[],magazy
     }
   }
   try{
-    await supabase.from('historia_edycji_operacji').insert({dokument_id:docId,zmienione_przez:me.imie,opis_zmiany:opis,przed_zmiana:before,po_zmianie:after});
+    for(const dp of (edit.usunietePozycje||[])){
+      await supabase.from('usuniete_operacje').insert({
+        operacja_id: dp.id || null,
+        dokument_id: docId,
+        kontrahent: before.kontrahent,
+        opakowanie: dp.opakowanie,
+        magazyn: before.magazyn,
+        typ: before.typ,
+        ilosc: Number(dp.ilosc)||0,
+        data_operacji: before.data_operacji,
+        godzina_operacji: before.godzina_operacji || null,
+        powod: 'Usunięto pozycję z dokumentu: ' + (dp.powod || ''),
+        usuniete_przez: me.imie
+      });
+    }
+  }catch(e){}
+  try{
+    await supabase.from('historia_edycji_operacji').insert({dokument_id:docId,zmienione_przez:me.imie,opis_zmiany:opis+((edit.usunietePozycje||[]).length?'; usunięte pozycje: '+(edit.usunietePozycje||[]).map(p=>`${p.opakowanie} ${p.ilosc} szt. — ${p.powod}`).join(', '):''),przed_zmiana:before,po_zmianie:after});
   }catch(e){}
   setEdit(null); notify&&notify('Dokument został edytowany'); await load();
  };
@@ -338,7 +372,21 @@ function Raporty({operacje,kontrahenci,opakowania}){
    </label><label>Rodzaj skrzynki<select value={opak} onChange={e=>setOpak(e.target.value)}><option value="">Wszystkie opakowania</option>{opakowania.map(o=><option key={o.id}>{o.nazwa}</option>)}</select></label><button className="primary" onClick={()=>setShow(true)}>Pokaż raport</button></div>
   {show&&<div className="reportPreview" id="reportPreview"><div className="reportActions noPrint"><button onClick={printReport}><Printer size={14}/> Drukuj</button><button onClick={exportX}><FileDown size={14}/> Pobierz Excel</button></div><div className="reportHeader"><h1>{reportTitle}</h1><p><b>Zakres dat:</b> {od||'od początku'} – {doo||'do dziś'}</p><p><b>Kontrahent:</b> {kon||'Wszyscy'} · <b>Rodzaj skrzynki:</b> {opak||'Wszystkie'}</p></div><div className="summaryBoxes"><div><b>Wydano</b><span>{total.wydanie}</span></div><div><b>Zwrócono</b><span>{total.zwrot}</span></div><div><b>Saldo</b><span>{total.saldo}</span></div><div><b>Liczba operacji</b><span>{rows.length}</span></div></div><h3>Podsumowanie według rodzaju skrzynki</h3><Table rows={summaryRows} cols={['opakowanie','wydanie','zwrot','saldo']}/><h3>Historia operacji</h3><Table rows={rows} cols={['data_operacji','godzina_operacji','typ','kontrahent','opakowanie','ilosc','magazyn','uzytkownik']}/></div>}
  </section>}
-function Usuniete({usuniete}){return <section className="card"><h2><Trash2/> Rejestr usuniętych operacji</h2><Table rows={usuniete} cols={['usunieto_o','data_operacji','kontrahent','opakowanie','magazyn','typ','ilosc','usuniete_przez','powod']}/></section>}
+function Usuniete({usuniete}){
+ const rows=[...(usuniete||[])].sort((a,b)=>(b.id||0)-(a.id||0));
+ return <section className="card"><h2><Trash2/> Usunięte operacje i pozycje</h2>
+  <p className="muted">Tutaj widać usunięte całe operacje oraz pozycje usunięte podczas edycji dokumentu.</p>
+  <div className="table deletedTable"><table><thead><tr>
+   <th>data</th><th>godz.</th><th>typ</th><th>kontrahent</th><th>opakowanie</th><th>ilość</th><th>magazyn</th><th>powód</th><th>usunął</th>
+  </tr></thead><tbody>
+   {rows.map(r=><tr key={r.id}>
+    <td>{r.data_operacji||''}</td><td>{r.godzina_operacji||''}</td><td>{r.typ||''}</td><td>{r.kontrahent||''}</td><td>{r.opakowanie||''}{r.dokument_id&&<small className="docBadge">dok.</small>}</td><td>{r.ilosc||''}</td><td>{r.magazyn||''}</td><td>{r.powod||''}</td><td>{r.usuniete_przez||''}</td>
+   </tr>)}
+  </tbody></table></div>
+ </section>
+}
+
+
 function Table({rows,cols}){return <div className="table"><table><thead><tr>{cols.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{cols.map(c=><td key={c}>{r[c]}</td>)}</tr>)}</tbody></table></div>}
 function List({data,render}){return <div>{data.map(x=><div className="item" key={x.id}>{render(x)}</div>)}</div>}
 
