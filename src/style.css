@@ -25,21 +25,6 @@
   cursor: pointer;
 }
 .suggestions button:hover { background: #eef6f4; }
-/* V24.2 - naprawa widoczności zakładki Historia */
-
-.tab {
-  white-space: nowrap !important;
-  min-width: fit-content !important;
-}
-
-.tab.active {
-  min-width: 120px !important;
-}
-
-.tabs {
-  flex-wrap: wrap !important;
-  gap: 8px !important;
-}
 
 /* v17: zalogowany użytkownik, akcje operacji, schowane pozycje */
 .userBadge{background:#eef2ff!important;color:#24356f!important}
@@ -780,78 +765,34 @@ input, select, textarea, button{
 }
 
 
-/* v24.1.2 — bezpieczna poprawka widoku Historii */
-nav button{
-  min-width:max-content;
+/* v24.1.3 - naprawa widocznosci zakladki Historia */
+nav {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  align-items: center !important;
 }
-nav button.active{
-  color:#fff !important;
+
+nav button {
+  width: auto !important;
+  min-width: 108px !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-indent: 0 !important;
+  color: #102033 !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
 }
-.historiaCard{
-  max-width:100%;
+
+nav button.active {
+  width: auto !important;
+  min-width: 118px !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-indent: 0 !important;
+  color: #ffffff !important;
+  background: #102033 !important;
 }
-.historiaCard .table{
-  width:100%;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-  border-radius:14px;
-}
-.historiaCard .table table{
-  min-width:980px !important;
-  width:100%;
-  table-layout:fixed;
-}
-.historiaCard .table th,
-.historiaCard .table td{
-  padding:7px 8px !important;
-  font-size:12.5px;
-  line-height:1.25;
-  white-space:normal;
-  word-break:normal;
-  overflow-wrap:anywhere;
-}
-.historiaCard .table th:nth-child(1),
-.historiaCard .table td:nth-child(1){
-  width:42px !important;
-  text-align:center;
-}
-.historiaCard .table th:nth-child(2),
-.historiaCard .table td:nth-child(2){
-  width:90px !important;
-}
-.historiaCard .table th:nth-child(3),
-.historiaCard .table td:nth-child(3){
-  width:55px !important;
-}
-.historiaCard .table th:nth-child(4),
-.historiaCard .table td:nth-child(4){
-  width:85px !important;
-}
-.historiaCard .table th:nth-child(5),
-.historiaCard .table td:nth-child(5){
-  width:155px !important;
-}
-.historiaCard .table th:nth-child(6),
-.historiaCard .table td:nth-child(6){
-  width:155px !important;
-}
-.historiaCard .table th:nth-child(7),
-.historiaCard .table td:nth-child(7){
-  width:60px !important;
-  text-align:center;
-}
-.historiaCard .table th:nth-child(8),
-.historiaCard .table td:nth-child(8){
-  width:110px !important;
-}
-.historiaCard .table th:nth-child(9),
-.historiaCard .table td:nth-child(9){
-  width:135px !important;
-}
-.historiaCard .miniActions{
-  min-width:105px !important;
-}
-.historiaCard .miniActions button{
-  font-size:11px !important;
-  padding:6px 7px !important;
-}
+

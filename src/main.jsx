@@ -58,7 +58,7 @@ function SetupSupabase(){
 }
 
 function Shell({children}){return <main><section className="hero"><div><h1>Agromarbanka</h1><p>Nowoczesna obsługa opakowań zwrotnych, magazynu głównego i zapasowego.</p></div></section>{children}</main>}
-function label(x){return {operacje:'Operacja',kontrahenci:'Kontrahenci',opakowania:'Opakowania',magazyny:'Magazyny',raporty:'Raporty',historia:'Historia',uzytkownicy:'Użytkownicy',usuniete:'Usunięte'}[x]})
+function label(x){return {operacje:'Operacja',kontrahenci:'Kontrahenci',opakowania:'Opakowania',magazyny:'Magazyny',raporty:'Raporty',historia:'Historia',uzytkownicy:'Użytkownicy',usuniete:'Usunięte'}[x]}
 function Login({users,setMe}){const [tel,setTel]=useState(''),[pin,setPin]=useState(''),[msg,setMsg]=useState(''); const login=()=>{const u=users.find(x=>x.telefon===tel.trim()&&x.pin===pin.trim()&&x.aktywny!==false); if(u){localStorage.setItem('agro_logged_user_id',String(u.id)); setMe(u);} else setMsg('Nieprawidłowy telefon lub PIN')}; return <Shell><div className="login"><h2>Panel logowania</h2><input placeholder="Telefon" value={tel} onChange={e=>setTel(e.target.value)}/><input placeholder="PIN" value={pin} onChange={e=>setPin(e.target.value)} type="password"/><button className="primary" onClick={login}>Zaloguj</button><small>Po zalogowaniu aplikacja zapamięta użytkownika do czasu kliknięcia „Wyloguj”.</small>{msg&&<p className="error">{msg}</p>}</div></Shell>}
 function SearchSelect({label,items,value,setValue,field='nazwa',resetKey=0}){
  const [q,setQ]=useState(value||''),[open,setOpen]=useState(false);
