@@ -796,3 +796,22 @@ nav button.active {
   background: #102033 !important;
 }
 
+
+
+/* v24.1.4 - naprawa otwierania edycji */
+#editDocBox{
+  scroll-margin-top:18px;
+}
+.editDocBox{
+  border:3px solid #1f3b57 !important;
+  background:#f8fbff !important;
+  box-shadow:0 14px 35px rgba(15,23,42,.12) !important;
+}
+.editDocBox h3::after{
+  content:" - formularz edycji";
+  font-size:14px;
+  color:#64748b;
+}
+.miniActions button{
+  cursor:pointer;
+}
