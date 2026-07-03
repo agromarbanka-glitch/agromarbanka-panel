@@ -20,23 +20,50 @@ const today=()=>new Date().toISOString().slice(0,10);
 const nowTime=()=>new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
 const norm=(s='')=>s.toString().toLowerCase().trim();
 
+async function fetchAllRows(table, options = {}) {
+  const pageSize = options.pageSize || 1000;
+  const maxRows = options.maxRows || 50000;
+  const orderColumn = options.orderColumn || 'id';
+  const ascending = options.ascending ?? true;
+  let from = 0;
+  let all = [];
+  while (from < maxRows) {
+    const to = Math.min(from + pageSize - 1, maxRows - 1);
+    const { data, error } = await supabase.from(table).select('*').order(orderColumn, { ascending }).range(from, to);
+    if (error) throw error;
+    const rows = data || [];
+    all = all.concat(rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 function App(){
  const [ready,setReady]=useState(false),[err,setErr]=useState(''),[me,setMe]=useState(null),[tab,setTab]=useState('operacje'),[toast,setToast]=useState('');
  const [kontrahenci,setKontrahenci]=useState([]),[opakowania,setOpakowania]=useState([]),[magazyny,setMagazyny]=useState([]),[users,setUsers]=useState([]),[operacje,setOperacje]=useState([]),[usuniete,setUsuniete]=useState([]);
  const logout=()=>{localStorage.removeItem('agro_logged_user_id'); setMe(null);};
  const load=async()=>{ if(!supabase){setErr('Brak zmiennych VITE_SUPABASE_URL lub VITE_SUPABASE_ANON_KEY w Vercel.'); setReady(true); return}
   try{
-   const tables=['kontrahenci','opakowania','magazyny','uzytkownicy','operacje','usuniete_operacje'];
-   const [k,o,m,u,op,del]=await Promise.all(tables.map(t=>supabase.from(t).select('*').order('id',{ascending:true})));
-   for(const r of [k,o,m,u,op,del]) if(r.error) throw r.error;
-   setKontrahenci(k.data||[]); setOpakowania(o.data||[]); setMagazyny(m.data||[]); setUsers(u.data||[]); setOperacje(op.data||[]); setUsuniete(del.data||[]);
+   const [k,o,m,u] = await Promise.all([
+    supabase.from('kontrahenci').select('*').order('id',{ascending:true}),
+    supabase.from('opakowania').select('*').order('id',{ascending:true}),
+    supabase.from('magazyny').select('*').order('id',{ascending:true}),
+    supabase.from('uzytkownicy').select('*').order('id',{ascending:true})
+   ]);
+   for(const r of [k,o,m,u]) if(r.error) throw r.error;
+   const [op,del] = await Promise.all([
+    fetchAllRows('operacje', { pageSize: 1000, maxRows: 50000, orderColumn: 'id', ascending: true }),
+    fetchAllRows('usuniete_operacje', { pageSize: 1000, maxRows: 50000, orderColumn: 'id', ascending: true })
+   ]);
+   setKontrahenci(k.data||[]); setOpakowania(o.data||[]); setMagazyny(m.data||[]); setUsers(u.data||[]); setOperacje(op||[]); setUsuniete(del||[]);
    const savedId=localStorage.getItem('agro_logged_user_id');
    if(savedId && !me){const savedUser=(u.data||[]).find(x=>String(x.id)===String(savedId)&&x.aktywny!==false); if(savedUser) setMe(savedUser);}
    setReady(true);
   }catch(e){setErr('Błąd połączenia z Supabase: '+(e.message||e)); setReady(true)}
  };
  useEffect(()=>{load()},[]);
- useEffect(()=>{const t=setInterval(()=>load(),15000);return()=>clearInterval(t)},[]);
+ useEffect(()=>{const t=setInterval(()=>load(),60000);return()=>clearInterval(t)},[]);
  if(!ready) return <Shell><div className="login"><h2>Ładowanie systemu...</h2></div></Shell>;
  if(err) return <SetupSupabase/>;
  if(!me) return <Login users={users} setMe={setMe}/>;
